@@ -5,13 +5,16 @@ export class UnitManager {
   private structures: Array<Structure> = []
   private occupiedPositions: Map<string, Unit> = new Map()
   private unitCollisionGroup: Phaser.Physics.Arcade.Group
-  private mapWidth: number = 100  // Default size, will be updated by GameScene
-  private mapHeight: number = 100
+  // Map dimensions are tracked for potential future use but not currently used
+  // @ts-ignore - TS6133: intentionally unused for future implementation
+  private _mapWidth: number = 100  // Default size, will be updated by GameScene
+  // @ts-ignore - TS6133: intentionally unused for future implementation
+  private _mapHeight: number = 100
 
   constructor(_scene: Phaser.Scene, unitCollisionGroup: Phaser.Physics.Arcade.Group, mapWidth: number = 100, mapHeight: number = 100) {
     this.unitCollisionGroup = unitCollisionGroup
-    this.mapWidth = mapWidth
-    this.mapHeight = mapHeight
+    this._mapWidth = mapWidth
+    this._mapHeight = mapHeight
     
     console.log(`🗺️ UnitManager initialized with map size: ${mapWidth}x${mapHeight}`)
   }
@@ -86,12 +89,12 @@ export class UnitManager {
 
   public setMapSize(width: number, height: number): void {
     console.log(`🗺️ UnitManager map size updated: ${width}x${height}`)
-    this.mapWidth = width
-    this.mapHeight = height
+    this._mapWidth = width
+    this._mapHeight = height
     
   }
 
-  public findPathForUnit(unit: Unit, targetX: number, targetY: number, showDebug: boolean = false): Array<{x: number, y: number}> {
+  public findPathForUnit(unit: Unit, targetX: number, targetY: number, _showDebug: boolean = false): Array<{x: number, y: number}> {
     // Direct movement
     if (this.canUnitMoveTo(unit, targetX, targetY)) {
       return [{ x: unit.isometricX, y: unit.isometricY }, { x: targetX, y: targetY }]

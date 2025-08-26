@@ -35,6 +35,7 @@ export interface MapData {
 export enum EditorTool {
   ERASE = 'erase',
   EDIT = 'edit',
+  DRAG = 'drag',
   NONE = 'none' // Default state for placing items
 }
 
@@ -64,7 +65,7 @@ export class MapEditorScene extends Phaser.Scene {
   }
 
   create() {
-    console.log('🎨 MapEditorScene create() called')
+    // MapEditorScene created
     
     // Add scene lifecycle event handlers
     this.events.once('shutdown', this.cleanup, this)
@@ -86,13 +87,7 @@ export class MapEditorScene extends Phaser.Scene {
     // Check if we're returning from a playtest and restore the map
     const sceneData = this.scene.settings.data as any
     if (sceneData && sceneData.metadata?.fromEditor) {
-      console.log('🔄 Restoring map from playtest with data:', {
-        width: sceneData.width,
-        height: sceneData.height,
-        terrainCount: sceneData.terrain?.length || 0,
-        structureCount: sceneData.structures?.length || 0,
-        unitCount: sceneData.units?.length || 0
-      })
+      // Restoring map from playtest
       this.loadMapData(sceneData)
     }
     
@@ -100,22 +95,14 @@ export class MapEditorScene extends Phaser.Scene {
     this.time.delayedCall(100, () => {
       if (this.physics.world.debugGraphic) {
         this.uiCamera.ignore(this.physics.world.debugGraphic)
-        console.log('🔧 UI camera configured to ignore physics debug')
+        // UI camera configured to ignore physics debug
       }
     })
     
-    console.log('🎨 Map Editor initialized successfully')
+    // Map Editor initialized
   }
 
   update() {
-    // Continuously ensure UI camera ignores physics debug graphics
-    if (this.physics.world.debugGraphic && this.uiCamera) {
-      this.uiCamera.ignore(this.physics.world.debugGraphic)
-    }
-    
-    // Update managers
-    this.placementManager.updateUICamera()
-    
     // Handle continuous camera movement with keyboard
     const keyboardResult = this.inputManager.handleKeyboardMovement()
     if (keyboardResult.moved) {
@@ -141,6 +128,7 @@ export class MapEditorScene extends Phaser.Scene {
       onPlaceItem: (isoX: number, isoY: number) => this.handlePlaceItem(isoX, isoY),
       onEraseItem: (isoX: number, isoY: number) => this.handleEraseItem(isoX, isoY),
       onEditItem: (isoX: number, isoY: number) => this.handleEditItem(isoX, isoY),
+      onDragItem: (fromIsoX: number, fromIsoY: number, toIsoX: number, toIsoY: number) => this.handleDragItem(fromIsoX, fromIsoY, toIsoX, toIsoY),
       onCameraDrag: (deltaX: number, deltaY: number, startX: number, startY: number) => this.handleCameraDrag(deltaX, deltaY, startX, startY),
       onCameraZoom: (deltaY: number) => this.handleCameraZoom(deltaY),
       onStatusUpdate: () => this.updateStatusText(),
@@ -189,6 +177,10 @@ export class MapEditorScene extends Phaser.Scene {
     this.placementManager.editItem(isoX, isoY)
   }
 
+  private handleDragItem(fromIsoX: number, fromIsoY: number, toIsoX: number, toIsoY: number): void {
+    this.placementManager.dragItem(fromIsoX, fromIsoY, toIsoX, toIsoY)
+  }
+
   private handleCameraDrag(deltaX: number, deltaY: number, startX: number, startY: number): void {
     this.cameras.main.setScroll(
       startX + deltaX / this.zoomLevel,
@@ -214,7 +206,8 @@ export class MapEditorScene extends Phaser.Scene {
       case 'tools':
         return [
           { label: 'Edit', action: () => this.setTool(EditorTool.EDIT) },
-          { label: 'Erase', action: () => this.setTool(EditorTool.ERASE) }
+          { label: 'Erase', action: () => this.setTool(EditorTool.ERASE) },
+          { label: 'Drag', action: () => this.setTool(EditorTool.DRAG) }
         ]
       case 'terrain':
         return [
@@ -310,7 +303,7 @@ export class MapEditorScene extends Phaser.Scene {
   // Map operations
   private clearMap(): void {
     this.placementManager.clearAll()
-    console.log('🧹 Map cleared')
+    // Map cleared
   }
 
   private saveMap(): void {
@@ -328,17 +321,11 @@ export class MapEditorScene extends Phaser.Scene {
   }
 
   private playTest(): void {
-    console.log('🎮 Starting playtest from editor')
+    // Starting playtest from editor
     this.saveMap()
     const mapData = this.getMapData()
     
-    console.log('🎮 Sending map data to GameScene:', {
-      width: mapData.width,
-      height: mapData.height,
-      terrainCount: mapData.terrain?.length || 0,
-      structureCount: mapData.structures?.length || 0,
-      unitCount: mapData.units?.length || 0
-    })
+    // Sending map data to GameScene
     
     this.cameras.main.fadeOut(300, 0, 0, 0)
     this.cameras.main.once('camerafadeoutcomplete', () => {
@@ -352,7 +339,7 @@ export class MapEditorScene extends Phaser.Scene {
 
   private loadMapData(mapData: MapData): void {
     try {
-      console.log('🔄 Starting loadMapData with:', mapData)
+      // Starting loadMapData
       
       const validatedData = this.mapDataManager.validateMapData(mapData)
       if (!validatedData) {
@@ -437,7 +424,7 @@ export class MapEditorScene extends Phaser.Scene {
         })
       }
       
-      console.log('📁 Map loaded successfully')
+      // Map loaded successfully
     } catch (error) {
       console.error('❌ Error loading map data:', error)
       this.clearMap()
@@ -512,14 +499,14 @@ export class MapEditorScene extends Phaser.Scene {
     ]
     
     idleAnimations.forEach(anim => {
-      this.load.spritesheet(anim.key, `The Female Adventurer - Free/Idle/${anim.file}`, {
+      this.load.spritesheet(anim.key, `assets/sprites/hero/${anim.file}`, {
         frameWidth: 48,
         frameHeight: 64
       })
     })
     
     walkAnimations.forEach(anim => {
-      this.load.spritesheet(anim.key, `The Female Adventurer - Free/Walk/${anim.file}`, {
+      this.load.spritesheet(anim.key, `assets/sprites/hero/${anim.file}`, {
         frameWidth: 48,
         frameHeight: 64
       })
@@ -580,6 +567,6 @@ export class MapEditorScene extends Phaser.Scene {
     
     // Destroy the UnitConfigModal singleton when scene is cleaned up
     UnitConfigModal.destroyInstance()
-    console.log('🎨 MapEditorScene cleanup complete - modal singleton destroyed')
+    // MapEditorScene cleanup complete - modal singleton destroyed
   }
 }

@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { Structure, ConfigurableUnit, ConfigurableHero } from '../units'
-import { HeroStats, StructureType, UnitConfig, AttackType } from '../units'
+import { HeroStats, StructureType, UnitConfig } from '../units'
 import { MapData, TerrainType } from '../scenes/MapEditorScene'
 import { IsometricGraphics } from '../graphics/IsometricGraphics'
 

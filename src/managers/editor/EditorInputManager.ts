@@ -7,6 +7,7 @@ export interface EditorInputConfig {
   onPlaceItem: (isoX: number, isoY: number) => void
   onEraseItem: (isoX: number, isoY: number) => void
   onEditItem: (isoX: number, isoY: number) => void
+  onDragItem: (fromIsoX: number, fromIsoY: number, toIsoX: number, toIsoY: number) => void
   onCameraDrag: (deltaX: number, deltaY: number, startX: number, startY: number) => void
   onCameraZoom: (deltaY: number) => void
   onStatusUpdate: () => void
@@ -24,6 +25,11 @@ export class EditorInputManager {
   private dragStartY: number = 0
   private cameraStartX: number = 0
   private cameraStartY: number = 0
+  
+  // Item drag state
+  private isDraggingItem: boolean = false
+  private dragFromIsoX: number = 0
+  private dragFromIsoY: number = 0
   
   // Keyboard controls
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
@@ -58,7 +64,7 @@ export class EditorInputManager {
         this.cameraStartY = this.scene.cameras.main.scrollY
         this.scene.input.setDefaultCursor('grabbing')
       } else {
-        // Left click for placement/erasure
+        // Left click for placement/erasure/drag
         const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y)
         const isoCoords = this.screenToIsometric(worldPoint.x, worldPoint.y)
         
@@ -66,6 +72,12 @@ export class EditorInputManager {
           this.config.onEraseItem(isoCoords.x, isoCoords.y)
         } else if (this.currentTool === EditorTool.EDIT) {
           this.config.onEditItem(isoCoords.x, isoCoords.y)
+        } else if (this.currentTool === EditorTool.DRAG) {
+          // Start drag from this position
+          this.isDraggingItem = true
+          this.dragFromIsoX = isoCoords.x
+          this.dragFromIsoY = isoCoords.y
+          this.scene.input.setDefaultCursor('grabbing')
         } else {
           // Default behavior: place items
           this.config.onPlaceItem(isoCoords.x, isoCoords.y)
@@ -95,6 +107,18 @@ export class EditorInputManager {
     this.scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       if (this.isDragging && pointer.rightButtonReleased()) {
         this.isDragging = false
+        this.scene.input.setDefaultCursor('default')
+      } else if (this.isDraggingItem && pointer.leftButtonReleased()) {
+        // Complete item drag
+        const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y)
+        const isoCoords = this.screenToIsometric(worldPoint.x, worldPoint.y)
+        
+        // Only call drag if we moved to a different position
+        if (isoCoords.x !== this.dragFromIsoX || isoCoords.y !== this.dragFromIsoY) {
+          this.config.onDragItem(this.dragFromIsoX, this.dragFromIsoY, isoCoords.x, isoCoords.y)
+        }
+        
+        this.isDraggingItem = false
         this.scene.input.setDefaultCursor('default')
       }
     })

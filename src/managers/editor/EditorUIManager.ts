@@ -84,7 +84,7 @@ export class EditorUIManager {
     this.activeCategory = categoryKey
     this.updateCategoryButtons()
     this.updateSubCategories()
-    console.log(`📂 Active category: ${categoryKey}`)
+    // Active category updated
   }
 
   private updateCategoryButtons(): void {
@@ -166,7 +166,7 @@ export class EditorUIManager {
       label.setStyle({ color: isActive ? '#ffffff' : '#cccccc' })
     })
     bg.on('pointerdown', () => {
-      console.log(`🔘 Nav button clicked: ${text}`)
+      // Nav button clicked
       onClick()
     })
     

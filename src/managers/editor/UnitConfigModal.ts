@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { UnitConfig, DEFAULT_UNIT_CONFIG, AVAILABLE_TEXTURES, TextureOption, AttackType } from '../../units/UnitConfig'
+import { deepCloneUnitConfig } from '../../utils/ConfigUtils'
 
 export class UnitConfigModal {
   private static instance: UnitConfigModal | null = null
@@ -24,6 +25,7 @@ export class UnitConfigModal {
   private sections: Map<string, { container: Phaser.GameObjects.Container, collapsed: boolean, fields: string[] }> = new Map()
   private currentSectionId: string | null = null
   private currentFieldIndex: number = 0
+  private checkboxes: Map<string, Phaser.GameObjects.Text> = new Map()
 
   private constructor(scene: Phaser.Scene, uiCamera: Phaser.Cameras.Scene2D.Camera) {
     this.scene = scene
@@ -36,7 +38,7 @@ export class UnitConfigModal {
       hitboxCenterY: DEFAULT_UNIT_CONFIG.hitboxCenterY || 0
     }
     
-    console.log('🎭 UnitConfigModal instance created for scene:', scene.scene.key)
+    // UnitConfigModal instance created
     
     // Default callbacks
     this.onConfirm = () => {}
@@ -48,65 +50,55 @@ export class UnitConfigModal {
   public static getInstance(scene: Phaser.Scene, uiCamera: Phaser.Cameras.Scene2D.Camera): UnitConfigModal {
     const currentSceneKey = scene.scene.key
     
-    console.log(`🎭 getInstance called for scene '${currentSceneKey}'`)
-    console.log(`🎭 Current singleton state: instance=${!!UnitConfigModal.instance}, sceneKey=${UnitConfigModal.sceneKey}`)
+    // getInstance called for scene
     
     // Check if we need to update scene references for existing instance
     if (UnitConfigModal.instance && 
         (UnitConfigModal.sceneKey !== currentSceneKey || 
          UnitConfigModal.instance.scene !== scene ||
          UnitConfigModal.instance.scene.scene.key !== currentSceneKey)) {
-      console.log(`🎭 Updating existing UnitConfigModal from scene '${UnitConfigModal.sceneKey}' for new scene '${currentSceneKey}'`)
+      // Updating existing UnitConfigModal for new scene
       UnitConfigModal.instance.updateSceneReferences(scene, uiCamera)
       UnitConfigModal.sceneKey = currentSceneKey
-      console.log(`🎭 Scene references updated successfully`)
     }
     
     // Create new instance if none exists
     if (!UnitConfigModal.instance) {
-      console.log(`🎭 Creating new UnitConfigModal singleton for scene '${currentSceneKey}'`)
+      // Creating new UnitConfigModal singleton
       UnitConfigModal.instance = new UnitConfigModal(scene, uiCamera)
       UnitConfigModal.sceneKey = currentSceneKey
-      console.log(`🎭 New singleton created successfully`)
-    } else {
-      console.log(`🎭 Using existing UnitConfigModal singleton for scene '${currentSceneKey}'`)
     }
     
     return UnitConfigModal.instance
   }
 
   public show(onConfirm: (config: UnitConfig) => void, onCancel: () => void, prefillConfig?: UnitConfig): void {
-    console.log('🎭 UnitConfigModal.show() called - checking modal state')
-    console.log('🎭 Scene key:', this.scene.scene.key)
-    console.log('🎭 Modal exists:', !!this.modal)
-    console.log('🎭 Overlay exists:', !!this.overlay)
+    // UnitConfigModal.show() called
+    console.log(`🔧 UnitConfigModal: show() called with prefillConfig:`, prefillConfig)
     
     // Check if this is a fresh reset before modifying the flag
     const wasFreshReset = this.freshReset
     
     // Use prefilled config if provided, otherwise use default logic
     if (prefillConfig) {
-      this.config = { 
-        ...prefillConfig,
-        hitboxWidth: prefillConfig.hitboxWidth || 1,
-        hitboxHeight: prefillConfig.hitboxHeight || 1,
-        hitboxCenterX: prefillConfig.hitboxCenterX || 0,
-        hitboxCenterY: prefillConfig.hitboxCenterY || 0
-      }
+      // Deep clone the prefilled config to ensure no shared references
+      this.config = deepCloneUnitConfig(prefillConfig)
+      console.log(`🔧 UnitConfigModal: Using prefilled config, AI config:`, this.config.ai)
+      // Ensure required fields have defaults
+      this.config.hitboxWidth = this.config.hitboxWidth || 1
+      this.config.hitboxHeight = this.config.hitboxHeight || 1
+      this.config.hitboxCenterX = this.config.hitboxCenterX || 0
+      this.config.hitboxCenterY = this.config.hitboxCenterY || 0
+      
       this.modifiedFields.clear() // Clear modified fields when pre-filling
-      console.log('✏️ Initialized with prefilled config:', this.config)
+      // Initialized with prefilled config
     } else if (!this.config || Object.keys(this.config).length === 0 || this.freshReset) {
-      this.config = { 
-        ...DEFAULT_UNIT_CONFIG,
-        hitboxWidth: DEFAULT_UNIT_CONFIG.hitboxWidth || 1,
-        hitboxHeight: DEFAULT_UNIT_CONFIG.hitboxHeight || 1,
-        hitboxCenterX: DEFAULT_UNIT_CONFIG.hitboxCenterX || 0,
-        hitboxCenterY: DEFAULT_UNIT_CONFIG.hitboxCenterY || 0
-      }
+      // Deep clone the default config to ensure no shared references
+      this.config = deepCloneUnitConfig(DEFAULT_UNIT_CONFIG)
       this.freshReset = false
-      console.log('🔄 Initialized fresh config:', this.config)
+      // Initialized fresh config
     } else {
-      console.log('🔄 Preserving existing config:', this.config)
+      // Preserving existing config
     }
     
     this.onConfirm = onConfirm
@@ -114,9 +106,9 @@ export class UnitConfigModal {
     
     // Don't clear modified fields unless it was a fresh reset
     if (!wasFreshReset) {
-      console.log('🔄 Preserving modified fields:', Array.from(this.modifiedFields))
+      // Preserving modified fields
     } else {
-      console.log('🔄 Fresh reset - modified fields cleared')
+      // Fresh reset - modified fields cleared
     }
     
     this.updateInputValues()
@@ -124,45 +116,40 @@ export class UnitConfigModal {
     // Add extra checks for modal visibility
     if (this.modal) {
       this.modal.setVisible(true)
-      console.log('🎭 Modal visibility set to true')
+      // Modal visibility set to true
     } else {
       console.error('🎭 ERROR: Modal container is null!')
     }
     
     if (this.overlay) {
       this.overlay.setVisible(true)
-      console.log('🎭 Overlay visibility set to true')
+      // Overlay visibility set to true
     } else {
       console.error('🎭 ERROR: Overlay is null!')
     }
     
     this.visible = true
     
-    console.log('🎭 UnitConfigModal shown with initial config:', this.config)
+    // UnitConfigModal shown
     
     // Remove any existing keyboard listener first to prevent duplicates
-    console.log('🎮 Setting up keyboard input...')
-    console.log('🎮 Scene keyboard available:', !!this.scene.input.keyboard)
+    // Setting up keyboard input
     if (this.scene.input.keyboard) {
       this.scene.input.keyboard.off('keydown', this.handleKeyDown, this)
-      console.log('🎮 Previous keyboard listener removed')
-      // Then add the new listener
+      // Keyboard listener removed and re-registered
       this.scene.input.keyboard.on('keydown', this.handleKeyDown, this)
-      console.log('🎮 New keyboard listener registered successfully')
-      console.log('🎮 Keyboard enabled:', this.scene.input.keyboard.enabled)
-      console.log('🎮 Keyboard manager active:', this.scene.input.keyboard.manager)
     } else {
       console.warn('⚠️ No keyboard input available')
     }
   }
 
   public hide(): void {
-    console.log('🎭 Hiding modal')
+    // Hiding modal
     
     // Sync current selected field before hiding
     if (this.selectedField) {
       this.syncFieldToConfig(this.selectedField)
-      console.log('🔄 Synced selected field before hiding')
+      // Synced selected field before hiding
     }
     
     this.modal.setVisible(false)
@@ -178,9 +165,9 @@ export class UnitConfigModal {
     // Remove keyboard listener
     if (this.scene.input.keyboard) {
       this.scene.input.keyboard.off('keydown', this.handleKeyDown, this)
-      console.log('🎮 Keyboard listener removed')
+      // Keyboard listener removed
     }
-    console.log('🎭 Modal hidden successfully')
+    // Modal hidden successfully
   }
 
   public isVisible(): boolean {
@@ -204,9 +191,9 @@ export class UnitConfigModal {
     if (this.uiCamera) {
       this.uiCamera.setVisible(true)
     }
-    console.log('🎭 Modal overlay assigned to UI camera only')
+    // Modal overlay assigned to UI camera only
     this.overlay.on('pointerdown', () => {
-      console.log('🎭 Overlay clicked - closing any open dropdowns')
+      // Overlay clicked - closing dropdowns
       this.hideTextureDropdown()
     })
     
@@ -222,7 +209,7 @@ export class UnitConfigModal {
     if (this.uiCamera) {
       this.uiCamera.setVisible(true)
     }
-    console.log('🎭 Modal container assigned to UI camera only')
+    // Modal container assigned to UI camera only
 
     // Modal background - make it taller to accommodate sections
     const modalBg = this.scene.add.rectangle(0, 0, 500, 600, 0x333333, 0.95)
@@ -237,9 +224,11 @@ export class UnitConfigModal {
     }).setOrigin(0.5)
     this.modal.add(title)
 
-    // Create sections
+    // Create sections with consistent spacing
     let currentY = -240
-    currentY = this.createSection('basicStats', 'Basic Stats', currentY, [
+    const sectionSpacing = 45 // Consistent spacing between section headers
+
+    this.createSection('basicStats', 'Basic Stats', currentY, [
       () => this.createTextField('health', 'Health'),
       () => this.createTextField('attack', 'Attack'),
       () => this.createTextField('defense', 'Defense'),
@@ -248,26 +237,38 @@ export class UnitConfigModal {
       () => this.createTextField('attackRange', 'Attack Range')
     ])
     
-    currentY = this.createSection('rewards', 'Rewards', currentY + 20, [
+    currentY += sectionSpacing
+    this.createSection('rewards', 'Rewards', currentY, [
       () => this.createTextField('goldOnDeath', 'Gold on Death'),
       () => this.createTextField('expOnDeath', 'Exp on Death')
     ])
     
-    currentY = this.createSection('hitbox', 'Hitbox Configuration', currentY + 20, [
+    currentY += sectionSpacing
+    this.createSection('hitbox', 'Hitbox Configuration', currentY, [
       () => this.createTextField('hitboxWidth', 'Hitbox Width'),
       () => this.createTextField('hitboxHeight', 'Hitbox Height'),
       () => this.createTextField('hitboxCenterX', 'Hitbox Center X'),
       () => this.createTextField('hitboxCenterY', 'Hitbox Center Y')
     ])
     
-    currentY = this.createSection('appearance', 'Appearance', currentY + 20, [
+    currentY += sectionSpacing
+    this.createSection('appearance', 'Appearance', currentY, [
       () => this.createDropdownField('texture', 'Texture'),
       () => this.createTextField('animation', 'Animation')
     ])
     
-    currentY = this.createSection('combat', 'Combat System', currentY + 20, [
+    currentY += sectionSpacing
+    this.createSection('combat', 'Combat System', currentY, [
       () => this.createAttackTypeFields()
     ])
+    
+    currentY += sectionSpacing
+    this.createSection('ai', 'AI Behaviors', currentY, [
+      () => this.createAIFields()
+    ])
+
+    // Reposition all sections to account for collapsed state
+    this.repositionSections()
 
     // Buttons - Create as containers to ensure proper layering
     const confirmBtnContainer = this.scene.add.container(-50, 250)
@@ -282,7 +283,7 @@ export class UnitConfigModal {
     confirmBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-40, -15, 80, 30), Phaser.Geom.Rectangle.Contains)
     confirmBtnContainer.on('pointerdown', (_pointer: any, _localX: number, _localY: number, event: any) => {
       event.stopPropagation()
-      console.log('🎯 Confirm button container clicked')
+      // Confirm button clicked
       this.handleConfirm()
     })
     confirmBtnContainer.on('pointerover', () => {
@@ -305,7 +306,7 @@ export class UnitConfigModal {
     cancelBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-40, -15, 80, 30), Phaser.Geom.Rectangle.Contains)
     cancelBtnContainer.on('pointerdown', (_pointer: any, _localX: number, _localY: number, event: any) => {
       event.stopPropagation()
-      console.log('🎯 Cancel button container clicked')
+      // Cancel button clicked
       this.handleCancel()
     })
     cancelBtnContainer.on('pointerover', () => {
@@ -319,7 +320,7 @@ export class UnitConfigModal {
     // Don't ignore DOM elements by any camera to ensure interactivity
   }
 
-  private createSection(sectionId: string, title: string, startY: number, fieldFactories: (() => void)[]): number {
+  private createSection(sectionId: string, title: string, startY: number, fieldFactories: (() => void)[]): void {
     // Section header container - center it properly
     const sectionContainer = this.scene.add.container(0, startY)
     this.modal.add(sectionContainer)
@@ -330,8 +331,8 @@ export class UnitConfigModal {
     headerBg.setInteractive({ useHandCursor: true })
     sectionContainer.add(headerBg)
 
-    // Expand/collapse arrow - position relative to center
-    const arrow = this.scene.add.text(-210, 0, '▼', {
+    // Expand/collapse arrow - start collapsed (right arrow)
+    const arrow = this.scene.add.text(-210, 0, '▶', {
       fontSize: '12px',
       color: '#ffffff'
     }).setOrigin(0.5)
@@ -345,14 +346,15 @@ export class UnitConfigModal {
     }).setOrigin(0, 0.5)
     sectionContainer.add(titleText)
 
-    // Content container for fields
-    const contentContainer = this.scene.add.container(0, 0)
+    // Content container for fields - positioned below header, start hidden since collapsed by default
+    const contentContainer = this.scene.add.container(0, 25) // Position below the 25px header
+    contentContainer.setVisible(false)
     sectionContainer.add(contentContainer)
 
-    // Store section info
+    // Store section info - start collapsed by default
     const sectionInfo = {
       container: contentContainer,
-      collapsed: false,
+      collapsed: true,
       fields: [] as string[]
     }
     this.sections.set(sectionId, sectionInfo)
@@ -384,11 +386,7 @@ export class UnitConfigModal {
       headerBg.setFillStyle(0x444444)
     })
 
-    // Calculate final height based on field count
-    const finalHeight = 30 + (fieldFactories.length * 40)
-    
-    // Return next Y position
-    return startY + (sectionInfo.collapsed ? 25 : finalHeight)
+    // Section creation completed
   }
 
   private toggleSection(sectionId: string, arrow: Phaser.GameObjects.Text): void {
@@ -399,7 +397,7 @@ export class UnitConfigModal {
     section.container.setVisible(!section.collapsed)
     arrow.setText(section.collapsed ? '▶' : '▼')
     
-    console.log(`🔽 Section '${sectionId}' ${section.collapsed ? 'collapsed' : 'expanded'}`)
+    // Section toggled
     
     // Reposition all sections below this one
     this.repositionSections()
@@ -407,21 +405,60 @@ export class UnitConfigModal {
 
   private repositionSections(): void {
     let currentY = -240
-    const sectionOrder = ['basicStats', 'rewards', 'hitbox', 'appearance', 'combat']
+    const headerHeight = 25 // Height of section header
+    const sectionSpacing = 10 // Small gap between sections
+    const sectionOrder = ['basicStats', 'rewards', 'hitbox', 'appearance', 'combat', 'ai']
     
-    sectionOrder.forEach(sectionId => {
+    sectionOrder.forEach((sectionId) => {
       const section = this.sections.get(sectionId)
       if (section) {
         // Find the parent container (section container)
         const sectionContainer = section.container.parentContainer
         if (sectionContainer) {
+          // Position this section at current Y
           sectionContainer.y = currentY
-          const fieldCount = section.fields.length
-          const sectionHeight = section.collapsed ? 25 : (25 + fieldCount * 40)
-          currentY += sectionHeight + 20
+          
+          // Calculate next Y position based on whether this section is expanded
+          currentY += headerHeight // Always add header height
+          
+          if (!section.collapsed) {
+            // Add content height if section is expanded
+            const contentHeight = this.calculateSectionContentHeight(sectionId)
+            currentY += contentHeight
+          }
+          
+          currentY += sectionSpacing // Add gap between sections
         }
       }
     })
+  }
+
+  private calculateSectionContentHeight(sectionId: string): number {
+    const fieldHeight = 40 // Height per field
+    const baseContentPadding = 15 // Base padding for content
+    
+    switch (sectionId) {
+      case 'basicStats':
+        return 6 * fieldHeight + baseContentPadding // 6 fields
+      case 'rewards':
+        return 2 * fieldHeight + baseContentPadding // 2 fields
+      case 'hitbox':
+        return 4 * fieldHeight + baseContentPadding // 4 fields
+      case 'appearance':
+        return 2 * fieldHeight + baseContentPadding // 2 fields
+      case 'combat':
+        // Combat has title + 3 checkboxes (25px each) + padding
+        return 25 + (3 * 25) + baseContentPadding // Title + 3 checkboxes
+      case 'ai':
+        // AI has 2 subsections with titles, checkboxes and fields
+        // Wander: title + checkbox + 2 fields
+        // Chase: title + checkbox + 2 fields
+        const wanderHeight = 25 + 25 + (2 * 30) // title + checkbox + 2 fields
+        const chaseHeight = 25 + 25 + (2 * 30) // title + checkbox + 2 fields
+        return wanderHeight + chaseHeight + 45 + baseContentPadding // +45 for spacing between sections
+      default:
+        return 40 + baseContentPadding
+    }
   }
 
   private createTextField(key: string, label: string): void {
@@ -450,20 +487,16 @@ export class UnitConfigModal {
     inputBg.setInteractive({ useHandCursor: true })
     inputBg.on('pointerdown', (_pointer: any, _localX: number, _localY: number, event: any) => {
       event.stopPropagation()
-      console.log(`🎯 Input field '${key}' clicked`)
-      console.log(`🎯 Input field interactive:`, inputBg.input?.enabled)
-      console.log(`🔍 Current selectedField: '${this.selectedField}'`)
-      console.log(`🔍 Current config before sync:`, JSON.stringify(this.config, null, 2))
+      // Input field clicked
       
       // Sync current field value to config before switching
       if (this.selectedField && this.selectedField !== key) {
-        console.log(`🔄 About to sync field '${this.selectedField}' before switching to '${key}'`)
+        // Syncing field before switching
         this.syncFieldToConfig(this.selectedField)
-        console.log(`🔍 Config after sync:`, JSON.stringify(this.config, null, 2))
       }
       
       this.selectedField = key
-      console.log(`🎯 Selected field changed to: '${key}'`)
+      // Selected field changed
       this.updateFieldAppearance()
     })
     inputBg.on('pointerover', () => {
@@ -500,7 +533,7 @@ export class UnitConfigModal {
   }
 
   private getCurrentFieldY(): number {
-    return 30 + (this.currentFieldIndex * 40)
+    return 15 + (this.currentFieldIndex * 40) // Start at 15 since content container is already positioned below header
   }
 
   private createDropdownField(key: string, label: string): void {
@@ -529,7 +562,7 @@ export class UnitConfigModal {
     dropdownBg.setInteractive({ useHandCursor: true })
     dropdownBg.on('pointerdown', (_pointer: any, _localX: number, _localY: number, event: any) => {
       event.stopPropagation()
-      console.log(`🎯 Dropdown field '${key}' clicked`)
+      // Dropdown field clicked
       // Don't set selectedField for dropdown fields - they handle their own interaction
       if (key === 'texture') {
         this.toggleTextureDropdown(x + 140, y)
@@ -619,7 +652,7 @@ export class UnitConfigModal {
         // Click handler
         itemBg.on('pointerdown', (_pointer: any, _localX: number, _localY: number, event: any) => {
           event.stopPropagation()
-          console.log(`🎯 Selected texture: ${textureOption.name} (${textureOption.key})`)
+          // Selected texture
           
           // Hide dropdown first, then update selection
           this.hideTextureDropdown()
@@ -646,35 +679,34 @@ export class UnitConfigModal {
   }
 
   private selectTexture(textureOption: TextureOption): void {
-    console.log(`🔄 selectTexture called with:`, textureOption)
+    // selectTexture called
     
     // Update config
     this.config.texture = textureOption.key
     this.config.animationPrefix = textureOption.animationPrefix
-    console.log(`🔄 Config updated:`, { texture: this.config.texture, animationPrefix: this.config.animationPrefix })
+    // Config updated
     
     // Update display text
     const textureText = this.inputTexts.get('texture')
-    console.log(`🔄 textureText element found:`, !!textureText)
+    // textureText element found
     if (textureText) {
-      const oldText = textureText.text
       textureText.setText(textureOption.name)
-      console.log(`🔄 Text updated from "${oldText}" to "${textureText.text}"`)
+      // Text updated
     }
     
-    console.log(`✅ Updated texture to: ${textureOption.name} with animation prefix: ${textureOption.animationPrefix}`)
+    // Updated texture selection
   }
 
   private createAttackTypeFields(): void {
     const x = 20
-    let y = this.getCurrentFieldY()
+    let y = 15 // Start at 15 since content container is positioned below header
     
     // Find the current section being populated
     const currentSection = this.getCurrentSection()
     
     // Section title
-    const sectionTitle = this.scene.add.text(x, y - 10, 'Available Attack Types:', {
-      fontSize: '14px',
+    const sectionTitle = this.scene.add.text(x, y, 'Available Attack Types:', {
+      fontSize: '12px',
       color: '#ffffff',
       fontStyle: 'bold'
     }).setOrigin(0, 0.5)
@@ -685,10 +717,9 @@ export class UnitConfigModal {
     // Create checkboxes for each attack type
     const attackTypes = [AttackType.MELEE, AttackType.RANGED, AttackType.HOMING]
     attackTypes.forEach((attackType, index) => {
-      const checkboxY = y + 20 + (index * 25)
+      const checkboxY = y + 25 + (index * 25)
       this.createAttackTypeCheckbox(attackType, x + 20, checkboxY, currentSection)
     })
-
   }
 
 
@@ -705,6 +736,9 @@ export class UnitConfigModal {
       fontSize: '12px',
       color: '#00ff00'
     }).setOrigin(0.5, 0.5).setVisible(isEnabled)
+    
+    // Store checkbox reference for easy updates
+    this.checkboxes.set(`attack_${attackType}`, checkmark)
     
     // Label
     const label = this.scene.add.text(x + 25, y, attackType.toUpperCase(), {
@@ -728,7 +762,7 @@ export class UnitConfigModal {
         }
       }
       
-      console.log(`🎯 Attack type ${attackType} ${!currentlyEnabled ? 'enabled' : 'disabled'}`)
+      // Attack type toggled
     })
 
     if (section) {
@@ -738,50 +772,330 @@ export class UnitConfigModal {
     }
   }
 
+  private createAIFields(): void {
+    const x = 20
+    let y = 15 // Start at 15 since content container is positioned below header
+    
+    // Find the current section being populated
+    const currentSection = this.getCurrentSection()
+    
+    // Wander behavior section
+    const wanderTitle = this.scene.add.text(x, y, 'Wander Behavior:', {
+      fontSize: '12px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0, 0.5)
+    if (currentSection) {
+      currentSection.container.add(wanderTitle)
+    }
 
+    // Wander enabled checkbox
+    const wanderY = y + 25
+    this.createAICheckbox('wander_enabled', 'Enable Wander', x + 20, wanderY, currentSection)
+
+    // Wander radius field
+    const radiusY = wanderY + 25
+    this.createAITextField('wander_radius', 'Wander Radius', x + 20, radiusY, currentSection)
+
+    // Wander interval field
+    const intervalY = radiusY + 30
+    this.createAITextField('wander_interval', 'Wander Interval (ms)', x + 20, intervalY, currentSection)
+
+    // Chase behavior section
+    const chaseY = intervalY + 35
+    const chaseTitle = this.scene.add.text(x, chaseY, 'Chase Behavior:', {
+      fontSize: '12px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0, 0.5)
+    if (currentSection) {
+      currentSection.container.add(chaseTitle)
+    }
+
+    // Chase enabled checkbox
+    const chaseEnabledY = chaseY + 25
+    this.createAICheckbox('chase_enabled', 'Enable Chase', x + 20, chaseEnabledY, currentSection)
+
+    // Chase range field
+    const chaseRangeY = chaseEnabledY + 25
+    this.createAITextField('chase_range', 'Chase Range', x + 20, chaseRangeY, currentSection)
+
+    // Chase distance field
+    const chaseDistanceY = chaseRangeY + 30
+    this.createAITextField('chase_distance', 'Max Chase Distance', x + 20, chaseDistanceY, currentSection)
+
+  }
+
+  private createAICheckbox(
+    key: string, 
+    label: string, 
+    x: number, 
+    y: number, 
+    section?: { container: Phaser.GameObjects.Container, collapsed: boolean, fields: string[] } | null
+  ): void {
+    // Checkbox background
+    const checkboxBg = this.scene.add.rectangle(x, y, 16, 16, 0x555555)
+    checkboxBg.setStrokeStyle(1, 0x777777)
+    checkboxBg.setInteractive({ useHandCursor: true })
+    
+    // Checkbox checkmark (initially based on config)
+    let isEnabled = false
+    if (key === 'wander_enabled') {
+      isEnabled = this.config.ai?.wander?.enabled ?? false
+    } else if (key === 'chase_enabled') {
+      isEnabled = this.config.ai?.chase?.enabled ?? false
+    }
+    const checkmark = this.scene.add.text(x, y, '✓', {
+      fontSize: '12px',
+      color: '#00ff00'
+    }).setOrigin(0.5, 0.5).setVisible(isEnabled)
+    
+    // Store checkbox reference for easy updates
+    this.checkboxes.set(key, checkmark)
+    
+    // Label
+    const labelText = this.scene.add.text(x + 25, y, label, {
+      fontSize: '11px',
+      color: '#ffffff'
+    }).setOrigin(0, 0.5)
+
+    // Click handler
+    checkboxBg.on('pointerdown', () => {
+      // Initialize AI config if it doesn't exist
+      if (!this.config.ai) {
+        this.config.ai = {}
+      }
+      
+      if (key === 'wander_enabled') {
+        if (!this.config.ai.wander) {
+          this.config.ai.wander = { enabled: false }
+        }
+        const currentlyEnabled = this.config.ai.wander.enabled
+        this.config.ai.wander.enabled = !currentlyEnabled
+        checkmark.setVisible(!currentlyEnabled)
+      } else if (key === 'chase_enabled') {
+        if (!this.config.ai.chase) {
+          this.config.ai.chase = { enabled: false }
+        }
+        const currentlyEnabled = this.config.ai.chase.enabled
+        this.config.ai.chase.enabled = !currentlyEnabled
+        checkmark.setVisible(!currentlyEnabled)
+      }
+    })
+
+    if (section) {
+      section.container.add([checkboxBg, checkmark, labelText])
+      section.fields.push(key)
+    } else {
+      this.modal.add([checkboxBg, checkmark, labelText])
+    }
+  }
+
+  private createAITextField(
+    key: string, 
+    label: string, 
+    x: number, 
+    y: number, 
+    section?: { container: Phaser.GameObjects.Container, collapsed: boolean, fields: string[] } | null
+  ): void {
+    // Label
+    const labelText = this.scene.add.text(x, y - 10, label, {
+      fontSize: '11px',
+      color: '#ffffff',
+      fixedWidth: 110
+    }).setOrigin(0, 0.5)
+    if (section) {
+      section.container.add(labelText)
+    }
+
+    // Input background
+    const inputBg = this.scene.add.rectangle(x + 140, y, 120, 20, 0x555555)
+    inputBg.setStrokeStyle(1, 0x777777)
+    inputBg.setInteractive({ useHandCursor: true })
+    
+    // Get current value
+    let currentValue: string
+    if (key === 'wander_radius') {
+      currentValue = String(this.config.ai?.wander?.wanderRadius ?? 5)
+    } else if (key === 'wander_interval') {
+      currentValue = String(this.config.ai?.wander?.wanderInterval ?? 3000)
+    } else if (key === 'chase_range') {
+      currentValue = String(this.config.ai?.chase?.chaseRange ?? 3)
+    } else if (key === 'chase_distance') {
+      currentValue = String(this.config.ai?.chase?.chaseDistance ?? 8)
+    } else {
+      currentValue = '0'
+    }
+
+    // Input text
+    const inputText = this.scene.add.text(x + 140, y, currentValue, {
+      fontSize: '11px',
+      color: '#ffffff',
+      fixedWidth: 115
+    }).setOrigin(0.5, 0.5)
+    
+    // Click handler for field selection
+    inputBg.on('pointerdown', (_pointer: any, _localX: number, _localY: number, event: any) => {
+      event.stopPropagation()
+      // AI input field clicked
+      
+      // Sync current field value to config before switching
+      if (this.selectedField && this.selectedField !== key) {
+        this.syncFieldToConfig(this.selectedField)
+      }
+      
+      this.selectedField = key
+      this.updateFieldAppearance()
+    })
+    
+    inputBg.on('pointerover', () => {
+      if (this.selectedField !== key) {
+        inputBg.setStrokeStyle(2, 0xaaaaaa)
+      }
+    })
+    
+    inputBg.on('pointerout', () => {
+      if (this.selectedField !== key) {
+        inputBg.setStrokeStyle(1, 0x777777)
+      }
+    })
+
+    if (section) {
+      section.container.add([inputBg, inputText])
+      section.fields.push(key)
+    } else {
+      this.modal.add([inputBg, inputText])
+    }
+    
+    this.inputTexts.set(key, inputText)
+  }
 
   private updateInputValues(): void {
-    console.log('🔄🚨 updateInputValues called with config:', this.config)
-    console.log('🔄🚨 Modified fields:', Array.from(this.modifiedFields))
+    // updateInputValues called
     this.inputTexts.forEach((text, key) => {
-      const oldValue = text.text
       if (key === 'texture') {
         const currentTexture = AVAILABLE_TEXTURES.find(t => t.key === this.config.texture)
         const displayText = currentTexture ? currentTexture.name : this.config.texture
         text.setText(displayText)
-        console.log(`🔄 Updated ${key} display: "${oldValue}" -> "${displayText}"`)
+        // Updated texture display
+      } else if (key.startsWith('wander_')) {
+        // Handle AI wander fields
+        let displayValue = '0'
+        if (key === 'wander_radius') {
+          displayValue = String(this.config.ai?.wander?.wanderRadius ?? 5)
+        } else if (key === 'wander_interval') {
+          displayValue = String(this.config.ai?.wander?.wanderInterval ?? 3000)
+        }
+        text.setText(displayValue)
+        // Updated AI wander field display
+      } else if (key.startsWith('chase_')) {
+        // Handle AI chase fields
+        let displayValue = '0'
+        if (key === 'chase_range') {
+          displayValue = String(this.config.ai?.chase?.chaseRange ?? 3)
+        } else if (key === 'chase_distance') {
+          displayValue = String(this.config.ai?.chase?.chaseDistance ?? 8)
+        }
+        text.setText(displayValue)
+        // Updated AI chase field display
+      } else if (key.startsWith('attack_')) {
       } else {
         const currentValue = (this.config as any)[key]
         const displayValue = currentValue !== undefined ? String(currentValue) : '0'
         text.setText(displayValue)
-        console.log(`🔄 Updated ${key} display: "${oldValue}" -> "${displayValue}" (config value: ${currentValue})`)
+        // Updated field display
       }
     })
+    
+    // Also update checkboxes for AI behaviors and attack types
+    this.updateCheckboxStates()
+  }
+
+  private updateCheckboxStates(): void {
+    // Update attack type checkboxes
+    const meleeCheckbox = this.checkboxes.get('attack_melee')
+    if (meleeCheckbox) {
+      meleeCheckbox.setVisible(this.config.availableAttackTypes?.melee?.enabled ?? false)
+    }
+    
+    const rangedCheckbox = this.checkboxes.get('attack_ranged')
+    if (rangedCheckbox) {
+      rangedCheckbox.setVisible(this.config.availableAttackTypes?.ranged?.enabled ?? false)
+    }
+    
+    const homingCheckbox = this.checkboxes.get('attack_homing')
+    if (homingCheckbox) {
+      homingCheckbox.setVisible(this.config.availableAttackTypes?.homing?.enabled ?? false)
+    }
+    
+    // Update AI behavior checkboxes
+    const wanderCheckbox = this.checkboxes.get('wander_enabled')
+    if (wanderCheckbox) {
+      wanderCheckbox.setVisible(this.config.ai?.wander?.enabled ?? false)
+    }
+    
+    const chaseCheckbox = this.checkboxes.get('chase_enabled')
+    if (chaseCheckbox) {
+      chaseCheckbox.setVisible(this.config.ai?.chase?.enabled ?? false)
+    }
+    
   }
 
   private syncFieldToConfig(fieldKey: string): void {
     const textElement = this.inputTexts.get(fieldKey)
     if (!textElement) {
-      console.log(`⚠️ No text element found for field '${fieldKey}'`)
+      // No text element found for field
       return
     }
     
     const currentValue = textElement.text.trim()
-    console.log(`🔄 Syncing field '${fieldKey}' with value '${currentValue}' to config`)
+    // Syncing field to config
     
     // Mark field as modified if it has content
     if (currentValue && currentValue !== '0') {
       this.modifiedFields.add(fieldKey)
-      console.log(`🔄 Field '${fieldKey}' marked as modified during sync`)
+      // Field marked as modified
     }
     
     if (fieldKey === 'texture') {
       // Texture is handled by dropdown, don't override
-      console.log(`🔄 Skipping texture field sync (handled by dropdown)`)
+      // Skipping texture field sync
       return
     } else if (fieldKey === 'animation') {
       // Animation is a text field
       (this.config as any)[fieldKey] = currentValue
+    } else if (fieldKey.startsWith('wander_')) {
+      // Handle AI wander fields
+      if (!this.config.ai) {
+        this.config.ai = { wander: { enabled: false } }
+      }
+      if (!this.config.ai.wander) {
+        this.config.ai.wander = { enabled: false }
+      }
+      
+      if (fieldKey === 'wander_radius') {
+        const numValue = parseInt(currentValue) || 5
+        this.config.ai.wander.wanderRadius = numValue
+      } else if (fieldKey === 'wander_interval') {
+        const numValue = parseInt(currentValue) || 3000
+        this.config.ai.wander.wanderInterval = numValue
+      }
+    } else if (fieldKey.startsWith('chase_')) {
+      // Handle AI chase fields
+      if (!this.config.ai) {
+        this.config.ai = {}
+      }
+      if (!this.config.ai.chase) {
+        this.config.ai.chase = { enabled: false }
+      }
+      
+      if (fieldKey === 'chase_range') {
+        const numValue = parseInt(currentValue) || 3
+        this.config.ai.chase.chaseRange = numValue
+      } else if (fieldKey === 'chase_distance') {
+        const numValue = parseInt(currentValue) || 8
+        this.config.ai.chase.chaseDistance = numValue
+      }
     } else {
       // All other fields are numeric
       if (currentValue === '' || currentValue === '0') {
@@ -789,7 +1103,7 @@ export class UnitConfigModal {
       } else {
         const numValue = parseFloat(currentValue)
         if (isNaN(numValue)) {
-          console.log(`⚠️ Invalid numeric value '${currentValue}' for field '${fieldKey}', using 0`)
+          // Invalid numeric value, using 0
           ;(this.config as any)[fieldKey] = 0
         } else {
           ;(this.config as any)[fieldKey] = numValue
@@ -797,7 +1111,7 @@ export class UnitConfigModal {
       }
     }
     
-    console.log(`✅ Synced config.${fieldKey} = ${(this.config as any)[fieldKey]}`)
+    // Synced field to config
   }
 
   private updateFieldAppearance(): void {
@@ -827,28 +1141,26 @@ export class UnitConfigModal {
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
-    console.log(`🎮 handleKeyDown called - key: '${event.key}'`)
-    console.log(`🎮 Current selectedField: '${this.selectedField}'`)
-    console.log(`🎮 Modal visible: ${this.visible}`)
+    // handleKeyDown called
     
     if (!this.selectedField) {
-      console.log('🎮 No field selected for keyboard input')
+      // No field selected for keyboard input
       return
     }
 
     // Prevent duplicate key events (debounce)
     const currentTime = Date.now()
     if (event.key === this.lastKey && currentTime - this.lastKeyTime < 50) {
-      console.log('🎮 Duplicate key event ignored:', event.key)
+      // Duplicate key event ignored
       return
     }
     this.lastKeyTime = currentTime
     this.lastKey = event.key
 
-    console.log(`🎮 Processing key: '${event.key}' for field '${this.selectedField}'`)
+    // Processing keyboard input
     
     // Debug: log current config state
-    console.log(`🔍 Current config for ${this.selectedField}:`, (this.config as any)[this.selectedField])
+    // Current config state
 
     const currentText = this.inputTexts.get(this.selectedField)!
     if (!currentText) {
@@ -857,13 +1169,13 @@ export class UnitConfigModal {
     }
     
     let currentValue = currentText.text
-    console.log(`🔍 Current text value: '${currentValue}'`)
+    // Current text value
 
     if (event.key === 'Backspace') {
       currentValue = currentValue.slice(0, -1)
-      console.log(`🎮 Backspace - new value: '${currentValue}'`)
+      // Backspace pressed
     } else if (event.key === 'Enter') {
-      console.log(`🎮 Enter pressed - deselecting field '${this.selectedField}'`)
+      // Enter pressed - deselecting field
       this.selectedField = null
       this.updateFieldAppearance()
       return
@@ -873,17 +1185,25 @@ export class UnitConfigModal {
         // For text fields, allow letters
         if (/[a-zA-Z_]/.test(event.key)) {
           currentValue += event.key
-          console.log(`🎮 Text field - added '${event.key}', new value: '${currentValue}'`)
+          // Text character added
         } else {
-          console.log(`🎮 Invalid character '${event.key}' for text field`)
+          // Invalid character for text field
+        }
+      } else if (this.selectedField?.startsWith('wander_') || this.selectedField?.startsWith('chase_')) {
+        // For AI fields, allow integers only (no decimals)
+        if (/[0-9]/.test(event.key)) {
+          currentValue += event.key
+          // AI numeric character added
+        } else {
+          // Invalid character for AI field
         }
       } else {
         // For numeric fields, allow numbers and decimal
         if (/[0-9.]/.test(event.key)) {
           currentValue += event.key
-          console.log(`🎮 Numeric field - added '${event.key}', new value: '${currentValue}'`)
+          // Numeric character added
         } else {
-          console.log(`🎮 Invalid character '${event.key}' for numeric field`)
+          // Invalid character for numeric field
         }
       }
     }
@@ -892,24 +1212,54 @@ export class UnitConfigModal {
     
     // Mark field as modified by user
     this.modifiedFields.add(this.selectedField)
-    console.log(`🎮 Field '${this.selectedField}' marked as modified. Modified fields:`, Array.from(this.modifiedFields))
+    // Field marked as modified
     
     // Update config
     if (this.selectedField === 'texture' || this.selectedField === 'animation') {
       (this.config as any)[this.selectedField] = currentValue
-      console.log(`🎮 Updated config.${this.selectedField} = '${currentValue}'`)
+      // Updated text config
+    } else if (this.selectedField?.startsWith('wander_')) {
+      // Handle AI wander fields
+      if (!this.config.ai) {
+        this.config.ai = { wander: { enabled: false } }
+      }
+      if (!this.config.ai.wander) {
+        this.config.ai.wander = { enabled: false }
+      }
+      
+      const numValue = parseInt(currentValue) || 0
+      if (this.selectedField === 'wander_radius') {
+        this.config.ai.wander.wanderRadius = numValue
+        // Updated wander radius
+      } else if (this.selectedField === 'wander_interval') {
+        this.config.ai.wander.wanderInterval = numValue
+        // Updated wander interval
+      }
+    } else if (this.selectedField?.startsWith('chase_')) {
+      // Handle AI chase fields
+      if (!this.config.ai) {
+        this.config.ai = {}
+      }
+      if (!this.config.ai.chase) {
+        this.config.ai.chase = { enabled: false }
+      }
+      
+      const numValue = parseInt(currentValue) || 0
+      if (this.selectedField === 'chase_range') {
+        this.config.ai.chase.chaseRange = numValue
+        // Updated chase range
+      } else if (this.selectedField === 'chase_distance') {
+        this.config.ai.chase.chaseDistance = numValue
+        // Updated chase distance
+      }
     } else {
       const numValue = parseFloat(currentValue) || 0;
       (this.config as any)[this.selectedField] = numValue
-      console.log(`🎮 Updated config.${this.selectedField} = ${numValue}`)
+      // Updated numeric config
       
       // Special logging for the problematic fields
       if (this.selectedField === 'goldOnDeath' || this.selectedField === 'expOnDeath') {
-        console.log(`🔍 Special check for ${this.selectedField}:`, {
-          originalValue: currentValue,
-          parsedValue: numValue,
-          configValue: (this.config as any)[this.selectedField]
-        })
+        // Special field updated
       }
     }
   }
@@ -933,49 +1283,44 @@ export class UnitConfigModal {
         const numValue = parseFloat(textElement.text) || 0
         ;(this.config as any)[fieldKey] = numValue
       }
-      console.log(`🔄 Final collected config.${fieldKey} = ${(this.config as any)[fieldKey]}`)
+      // Final config collected
     })
     
-    console.log('✅ handleConfirm called with final config:', this.config)
-    console.log('✅ onConfirm callback:', typeof this.onConfirm)
+    // handleConfirm called with final config
+    console.log(`🔧 UnitConfigModal: Confirming with final config:`, this.config)
+    console.log(`🔧 UnitConfigModal: Final AI config being passed:`, this.config.ai)
     this.hide()
-    console.log('✅ Modal hidden, calling onConfirm callback')
     this.onConfirm(this.config)
-    console.log('✅ onConfirm callback completed')
   }
 
   private handleCancel(): void {
-    console.log('❌ handleCancel called')
-    console.log('❌ onCancel callback:', typeof this.onCancel)
+    // handleCancel called
     this.hide()
-    console.log('❌ Modal hidden, calling onCancel callback')
     this.onCancel()
-    console.log('❌ onCancel callback completed')
   }
 
   public reset(): void {
     // Reset to fresh state for new unit placement
     this.freshReset = true
     this.modifiedFields.clear()
-    console.log('🔄 Modal reset to fresh state - will reinitialize on next show()')
+    this.checkboxes.clear()
+    // Modal reset to fresh state
   }
   
   public updateSceneReferences(scene: Phaser.Scene, uiCamera: Phaser.Cameras.Scene2D.Camera): void {
-    console.log('🔄 Updating modal scene references')
-    console.log('🔄 Old scene:', this.scene.scene.key)
-    console.log('🔄 New scene:', scene.scene.key)
+    // Updating modal scene references
     
     // Remove old keyboard listeners
     if (this.scene.input.keyboard) {
       this.scene.input.keyboard.off('keydown', this.handleKeyDown, this)
-      console.log('🔄 Removed keyboard listener from old scene')
+      // Removed keyboard listener from old scene
     }
     
     // Update references
     this.scene = scene
     this.uiCamera = uiCamera
     
-    console.log('🔄 Scene references updated successfully')
+    // Scene references updated successfully
   }
   
   public static destroyInstance(): void {
@@ -985,7 +1330,7 @@ export class UnitConfigModal {
   }
 
   public destroy(): void {
-    console.log('🎭 Destroying UnitConfigModal singleton')
+    // Destroying UnitConfigModal singleton
     
     // Hide the modal first
     if (this.visible) {
@@ -1006,6 +1351,7 @@ export class UnitConfigModal {
     // Clear collections
     this.inputTexts.clear()
     this.sections.clear()
+    this.checkboxes.clear()
     
     // Clean up keyboard listener
     if (this.scene.input.keyboard) {
@@ -1016,6 +1362,6 @@ export class UnitConfigModal {
     UnitConfigModal.instance = null
     UnitConfigModal.sceneKey = null
     
-    console.log('🎭 UnitConfigModal singleton destroyed')
+    // UnitConfigModal singleton destroyed
   }
 }

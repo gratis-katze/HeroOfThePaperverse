@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { ConfigurableHero } from '../units'
 import { HeroStats } from '../units'
-import { AttackType } from '../units/UnitConfig'
+import { AttackType, UnitConfig } from '../units/UnitConfig'
 import { AnimationType } from '../units/AnimationTypes'
 import { StructureBuilder } from '../utils/StructureBuilder'
 import { MapData } from './MapEditorScene'
@@ -67,14 +67,14 @@ export class GameScene extends Phaser.Scene {
     ]
     
     idleAnimations.forEach(anim => {
-      this.load.spritesheet(anim.key, `The Female Adventurer - Free/Idle/${anim.file}`, {
+      this.load.spritesheet(anim.key, `assets/sprites/hero/${anim.file}`, {
         frameWidth: 48,
         frameHeight: 64
       })
     })
     
     walkAnimations.forEach(anim => {
-      this.load.spritesheet(anim.key, `The Female Adventurer - Free/Walk/${anim.file}`, {
+      this.load.spritesheet(anim.key, `assets/sprites/hero/${anim.file}`, {
         frameWidth: 48,
         frameHeight: 64
       })
@@ -97,126 +97,126 @@ export class GameScene extends Phaser.Scene {
     })
     
     // Load skeleton animation spritesheets
-    this.load.spritesheet('skeleton_idle', 'Monsters_Creatures_Fantasy/Skeleton/Idle.png', {
+    this.load.spritesheet('skeleton_idle', 'assets/sprites/skeleton/Idle.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('skeleton_walk', 'Monsters_Creatures_Fantasy/Skeleton/Walk.png', {
+    this.load.spritesheet('skeleton_walk', 'assets/sprites/skeleton/Walk.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('skeleton_attack', 'Monsters_Creatures_Fantasy/Skeleton/Attack.png', {
+    this.load.spritesheet('skeleton_attack', 'assets/sprites/skeleton/Attack.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('skeleton_death', 'Monsters_Creatures_Fantasy/Skeleton/Death.png', {
+    this.load.spritesheet('skeleton_death', 'assets/sprites/skeleton/Death.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('skeleton_take_hit', 'Monsters_Creatures_Fantasy/Skeleton/Take Hit.png', {
+    this.load.spritesheet('skeleton_take_hit', 'assets/sprites/skeleton/Take Hit.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
     // Load Flying Eye animation spritesheets
-    this.load.spritesheet('flying_eye_flight', 'Monsters_Creatures_Fantasy/Flying eye/Flight.png', {
+    this.load.spritesheet('flying_eye_flight', 'assets/sprites/flying_eye/Flight.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('flying_eye_attack', 'Monsters_Creatures_Fantasy/Flying eye/Attack.png', {
+    this.load.spritesheet('flying_eye_attack', 'assets/sprites/flying_eye/Attack.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('flying_eye_death', 'Monsters_Creatures_Fantasy/Flying eye/Death.png', {
+    this.load.spritesheet('flying_eye_death', 'assets/sprites/flying_eye/Death.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('flying_eye_take_hit', 'Monsters_Creatures_Fantasy/Flying eye/Take Hit.png', {
+    this.load.spritesheet('flying_eye_take_hit', 'assets/sprites/flying_eye/Take Hit.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
     // Load Goblin animation spritesheets
-    this.load.spritesheet('goblin_idle', 'Monsters_Creatures_Fantasy/Goblin/Idle.png', {
+    this.load.spritesheet('goblin_idle', 'assets/sprites/goblin/Idle.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('goblin_run', 'Monsters_Creatures_Fantasy/Goblin/Run.png', {
+    this.load.spritesheet('goblin_run', 'assets/sprites/goblin/Run.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('goblin_attack', 'Monsters_Creatures_Fantasy/Goblin/Attack.png', {
+    this.load.spritesheet('goblin_attack', 'assets/sprites/goblin/Attack.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('goblin_death', 'Monsters_Creatures_Fantasy/Goblin/Death.png', {
+    this.load.spritesheet('goblin_death', 'assets/sprites/goblin/Death.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('goblin_take_hit', 'Monsters_Creatures_Fantasy/Goblin/Take Hit.png', {
+    this.load.spritesheet('goblin_take_hit', 'assets/sprites/goblin/Take Hit.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
     // Load Mushroom animation spritesheets
-    this.load.spritesheet('mushroom_idle', 'Monsters_Creatures_Fantasy/Mushroom/Idle.png', {
+    this.load.spritesheet('mushroom_idle', 'assets/sprites/mushroom/Idle.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('mushroom_run', 'Monsters_Creatures_Fantasy/Mushroom/Run.png', {
+    this.load.spritesheet('mushroom_run', 'assets/sprites/mushroom/Run.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('mushroom_attack', 'Monsters_Creatures_Fantasy/Mushroom/Attack.png', {
+    this.load.spritesheet('mushroom_attack', 'assets/sprites/mushroom/Attack.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('mushroom_death', 'Monsters_Creatures_Fantasy/Mushroom/Death.png', {
+    this.load.spritesheet('mushroom_death', 'assets/sprites/mushroom/Death.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
-    this.load.spritesheet('mushroom_take_hit', 'Monsters_Creatures_Fantasy/Mushroom/Take Hit.png', {
+    this.load.spritesheet('mushroom_take_hit', 'assets/sprites/mushroom/Take Hit.png', {
       frameWidth: 150,
       frameHeight: 150
     })
     
     // Load Evil Wizard 3 animation spritesheets
-    this.load.spritesheet('evil_wizard_idle', 'Evil Wizard 3/Sprites/Idle.png', {
+    this.load.spritesheet('evil_wizard_idle', 'assets/sprites/evil_wizard/Idle.png', {
       frameWidth: 96,
       frameHeight: 96
     })
     
-    this.load.spritesheet('evil_wizard_walk', 'Evil Wizard 3/Sprites/Walk.png', {
+    this.load.spritesheet('evil_wizard_walk', 'assets/sprites/evil_wizard/Walk.png', {
       frameWidth: 96,
       frameHeight: 96
     })
     
-    this.load.spritesheet('evil_wizard_attack', 'Evil Wizard 3/Sprites/Attack.png', {
+    this.load.spritesheet('evil_wizard_attack', 'assets/sprites/evil_wizard/Attack.png', {
       frameWidth: 96,
       frameHeight: 96
     })
     
-    this.load.spritesheet('evil_wizard_death', 'Evil Wizard 3/Sprites/Death.png', {
+    this.load.spritesheet('evil_wizard_death', 'assets/sprites/evil_wizard/Death.png', {
       frameWidth: 96,
       frameHeight: 96
     })
     
-    this.load.spritesheet('evil_wizard_take_hit', 'Evil Wizard 3/Sprites/Get hit.png', {
+    this.load.spritesheet('evil_wizard_take_hit', 'assets/sprites/evil_wizard/Get hit.png', {
       frameWidth: 96,
       frameHeight: 96
     })
@@ -458,13 +458,14 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.unitCollisionGroup, this.structureCollisionGroup, (unit, structure) => {
       // Stop the unit when it hits a structure
       const unitObj = unit as Phaser.Types.Physics.Arcade.GameObjectWithBody
-      const structureObj = structure as Phaser.Types.Physics.Arcade.GameObjectWithBody
+      // @ts-ignore - TS6133: structure parameter required for collision callback signature
+      const _structureObj = structure as Phaser.Types.Physics.Arcade.GameObjectWithBody
       
-      console.log(`🚧 Collision detected between unit and structure at (${structureObj.x}, ${structureObj.y})`)
+      console.log(`🚧 Collision detected between unit and structure`)
       
       // Stop the unit's movement
-      if (unitObj.body) {
-        unitObj.body.setVelocity(0, 0)
+      if (unitObj.body && 'setVelocity' in unitObj.body) {
+        (unitObj.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0)
       }
       
       // If it's a configurable hero, stop movement and return to idle
@@ -763,20 +764,20 @@ export class GameScene extends Phaser.Scene {
     
     // Create player hero near the center
     const heroStats: HeroStats = { strength: 15, intelligence: 12, agility: 18 }
-    this.playerHero = this.mapManager.createHero(16, 12, heroStats, this.unitCollisionGroup)
+    const defaultConfig: UnitConfig = {
+      health: 100, attack: 20, defense: 10, attackSpeed: 1.5, movementSpeed: 2, attackRange: 1,
+      availableAttackTypes: {
+        melee: { enabled: true }, ranged: { enabled: false }, homing: { enabled: false }
+      },
+      activeAttackType: AttackType.MELEE, goldOnDeath: 0, expOnDeath: 0,
+      animationPrefix: 'hero', texture: 'hero'
+    }
+    this.playerHero = new ConfigurableHero(this, 16, 12, 'Player Hero', defaultConfig, heroStats)
     this.unitManager.addUnit(this.playerHero)
     this.unitManager.registerUnitPosition(this.playerHero, 16, 12)
     
     // Create some enemy units for testing combat
-    this.mapManager.createEnemyUnits(
-      this.unitManager.getUnits(), 
-      this.unitCollisionGroup, 
-      (unit, x, y) => this.unitManager.registerUnitPosition(unit, x, y),
-      this.unitManager,
-      this.combatSystem,
-      undefined,
-      this.structureCollisionGroup
-    )
+    // TODO: Enemy creation will be implemented based on map data or spawning system
     
     this.createRiver()
     
@@ -854,7 +855,15 @@ export class GameScene extends Phaser.Scene {
       if (!hasHero) {
         console.log('🏗️ Creating default hero')
         const heroStats: HeroStats = { strength: 15, intelligence: 12, agility: 18 }
-        this.playerHero = this.mapManager.createHero(16, 12, heroStats, this.unitCollisionGroup)
+        const defaultConfig: UnitConfig = {
+          health: 100, attack: 20, defense: 10, attackSpeed: 1.5, movementSpeed: 2, attackRange: 1,
+          availableAttackTypes: {
+            melee: { enabled: true }, ranged: { enabled: false }, homing: { enabled: false }
+          },
+          activeAttackType: AttackType.MELEE, goldOnDeath: 0, expOnDeath: 0,
+          animationPrefix: 'hero', texture: 'hero'
+        }
+        this.playerHero = new ConfigurableHero(this, 16, 12, 'Player Hero', defaultConfig, heroStats)
         this.unitManager.addUnit(this.playerHero)
         this.unitManager.registerUnitPosition(this.playerHero, 16, 12)
       }

@@ -45,6 +45,20 @@ export interface UnitConfig {
   strength?: number
   intelligence?: number
   agility?: number
+  
+  // AI configuration
+  ai?: {
+    wander?: {
+      enabled: boolean
+      wanderRadius?: number
+      wanderInterval?: number
+    }
+    chase?: {
+      enabled: boolean
+      chaseRange?: number
+      chaseDistance?: number
+    }
+  }
 }
 
 const createDefaultAttackTypes = (activeType: AttackType): UnitConfig['availableAttackTypes'] => ({
@@ -69,7 +83,24 @@ export const DEFAULT_UNIT_CONFIG: UnitConfig = {
   hitboxWidth: 1,
   hitboxHeight: 1,
   hitboxCenterX: 0,
-  hitboxCenterY: 0
+  hitboxCenterY: 0,
+  ai: {
+    wander: {
+      enabled: false,
+      wanderRadius: 5,
+      wanderInterval: 3000
+    },
+    chase: {
+      enabled: false,
+      chaseRange: 3,
+      chaseDistance: 8
+    },
+    attack: {
+      enabled: false,
+      attackRange: 1,
+      attackInterval: 1000
+    }
+  }
 }
 
 export const SAMURAI_UNIT_CONFIG: UnitConfig = {

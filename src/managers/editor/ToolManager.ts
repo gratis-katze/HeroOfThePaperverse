@@ -71,7 +71,8 @@ export class ToolManager {
                  this.activeItemType === 'block' ? `Block: ${this.selectedBlockType}` : 
                  `Unit: ${this.selectedUnitType}`
     const toolText = this.currentTool === EditorTool.ERASE ? 'ERASE' : 
-                    this.currentTool === EditorTool.EDIT ? 'EDIT' : 'PLACE'
+                    this.currentTool === EditorTool.EDIT ? 'EDIT' : 
+                    this.currentTool === EditorTool.DRAG ? 'DRAG' : 'PLACE'
     return `${toolText} - ${mode} | Map: ${this.mapWidth}x${this.mapHeight} | ${cameraInfo}`
   }
 
@@ -81,6 +82,8 @@ export class ToolManager {
         return this.currentTool === EditorTool.EDIT
       case 'Erase':
         return this.currentTool === EditorTool.ERASE
+      case 'Drag':
+        return this.currentTool === EditorTool.DRAG
       default:
         return false
     }

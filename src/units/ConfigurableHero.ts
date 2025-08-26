@@ -3,6 +3,7 @@ import { UnitConfig, AttackType } from './UnitConfig'
 import { GameScene } from '../scenes/GameScene'
 import { AnimationManager } from './AnimationManager'
 import { AnimationType, AnimationDirection } from './AnimationTypes'
+import { deepCloneUnitConfig } from '../utils/ConfigUtils'
 
 export interface HeroStats {
   strength: number
@@ -39,8 +40,8 @@ export class ConfigurableHero extends Unit {
 
   private targetX: number = 0
   private targetY: number = 0
-  private path: Array<{x: number, y: number}> = []
-  private currentPathIndex: number = 0
+  public path: Array<{x: number, y: number}> = []
+  public currentPathIndex: number = 0
   private levelText?: Phaser.GameObjects.Text
   private expCircle?: Phaser.GameObjects.Graphics
   private expBackground?: Phaser.GameObjects.Graphics
@@ -55,7 +56,8 @@ export class ConfigurableHero extends Unit {
   ) {
     super(scene, x, y, config.texture, name, UnitType.HERO)
     
-    this.config = { ...config }
+    // Deep clone config to ensure no shared references
+    this.config = deepCloneUnitConfig(config)
     this.stats = { ...stats }
     this.level = 1
     this.experience = 0

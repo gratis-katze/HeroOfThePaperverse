@@ -97,7 +97,7 @@ export class GridManager {
     // Throttled grid redraw for performance
     if (this.showGrid && !this.gridRedrawPending) {
       this.gridRedrawPending = true
-      this.scene.time.delayedCall(50, () => {
+      this.scene.time.delayedCall(200, () => {
         this.drawGrid()
         this.gridRedrawPending = false
       })

@@ -3,6 +3,9 @@ import { UnitConfig } from './UnitConfig'
 import { GameScene } from '../scenes/GameScene'
 import { AnimationManager } from './AnimationManager'
 import { AnimationType, AnimationDirection } from './AnimationTypes'
+import { AIManager } from './ai/AIManager'
+import { AIConfig } from './ai/AIBehavior'
+import { deepCloneUnitConfig } from '../utils/ConfigUtils'
 
 export class ConfigurableUnit extends Unit {
   public config: UnitConfig
@@ -30,6 +33,7 @@ export class ConfigurableUnit extends Unit {
   private deathAnimationStartTime: number = 0
   private readonly DEATH_ANIMATION_DURATION: number = 1000
   private combatSystem: any | null = null
+  private aiManager: AIManager
 
   private targetX: number = 0
   private targetY: number = 0
@@ -45,7 +49,8 @@ export class ConfigurableUnit extends Unit {
   ) {
     super(scene, x, y, config.texture, name, UnitType.BASIC_UNIT)
     
-    this.config = { ...config }
+    // Deep clone config to ensure no shared references
+    this.config = deepCloneUnitConfig(config)
     this.maxHealth = config.health
     this.currentHealth = config.health
     this.attack = config.attack
@@ -77,6 +82,21 @@ export class ConfigurableUnit extends Unit {
     // Initialize animation manager with animation prefix from config
     this.animationManager = new AnimationManager(this.sprite, config.animationPrefix)
     
+    // Initialize AI manager with config
+    const aiConfig = config.ai ? {
+      wander: {
+        enabled: config.ai.wander?.enabled !== undefined ? config.ai.wander.enabled : false,
+        wanderRadius: config.ai.wander?.wanderRadius ?? 5,
+        wanderInterval: config.ai.wander?.wanderInterval ?? 3000
+      },
+      chase: {
+        enabled: config.ai.chase?.enabled !== undefined ? config.ai.chase.enabled : false,
+        chaseRange: config.ai.chase?.chaseRange ?? 3,
+        chaseDistance: config.ai.chase?.chaseDistance ?? 8
+      },
+    } : undefined
+    this.aiManager = new AIManager(this, aiConfig)
+    
     // Start with idle animation
     this.animationManager.startIdleAnimation()
     
@@ -89,6 +109,9 @@ export class ConfigurableUnit extends Unit {
       this.updateHealthBar(this.currentHealth, this.maxHealth)
       return
     }
+    
+    // Update AI behaviors
+    this.aiManager.update(time, _delta)
     
     // Handle target logic
     if (this.target) {
@@ -200,7 +223,8 @@ export class ConfigurableUnit extends Unit {
   public updateConfig(newConfig: UnitConfig): void {
     const healthPercentage = this.getHealthPercentage()
     
-    this.config = { ...newConfig }
+    // Deep clone config to ensure no shared references
+    this.config = deepCloneUnitConfig(newConfig)
     this.maxHealth = newConfig.health
     this.currentHealth = Math.floor(newConfig.health * healthPercentage)
     this.attack = newConfig.attack
@@ -228,6 +252,30 @@ export class ConfigurableUnit extends Unit {
     
     // Update physics body size if hitbox changed
     this.updatePhysicsBodySize()
+    
+    // Update AI config if changed
+    if (newConfig.ai) {
+      console.log(`🔧 ConfigurableUnit: Received AI config update for ${this.name}:`, newConfig.ai)
+      const aiConfig = {
+        wander: {
+          enabled: newConfig.ai.wander?.enabled !== undefined ? newConfig.ai.wander.enabled : false,
+          wanderRadius: newConfig.ai.wander?.wanderRadius ?? 5,
+          wanderInterval: newConfig.ai.wander?.wanderInterval ?? 3000
+        },
+        chase: {
+          enabled: newConfig.ai.chase?.enabled !== undefined ? newConfig.ai.chase.enabled : false,
+          chaseRange: newConfig.ai.chase?.chaseRange ?? 3,
+          chaseDistance: newConfig.ai.chase?.chaseDistance ?? 8
+        },
+        attack: {
+          enabled: newConfig.ai.attack?.enabled !== undefined ? newConfig.ai.attack.enabled : false,
+          attackRange: newConfig.ai.attack?.attackRange ?? 1,
+          attackInterval: newConfig.ai.attack?.attackInterval ?? 1000
+        }
+      }
+      console.log(`🔧 ConfigurableUnit: Processed AI config for ${this.name}:`, aiConfig)
+      this.aiManager.updateConfig(aiConfig)
+    }
     
     this.updateHealthBar(this.currentHealth, this.maxHealth)
   }
@@ -410,7 +458,28 @@ export class ConfigurableUnit extends Unit {
   }
 
   public getConfig(): UnitConfig {
-    return { ...this.config }
+    const config = { ...this.config }
+    
+    // Sync current AI behavior states from AI manager back to config
+    if (config.ai) {
+      if (config.ai.attack) {
+        config.ai.attack.enabled = this.aiManager.isBehaviorEnabled('attack')
+      }
+      if (config.ai.chase) {
+        config.ai.chase.enabled = this.aiManager.isBehaviorEnabled('chase')
+      }
+      if (config.ai.wander) {
+        config.ai.wander.enabled = this.aiManager.isBehaviorEnabled('wander')
+      }
+    }
+    
+    console.log(`🔧 ConfigurableUnit: getConfig() for ${this.name}, synced AI config:`, config.ai)
+    console.log(`🔧 ConfigurableUnit: Current AI behavior states:`, {
+      attack: this.aiManager.isBehaviorEnabled('attack'),
+      chase: this.aiManager.isBehaviorEnabled('chase'), 
+      wander: this.aiManager.isBehaviorEnabled('wander')
+    })
+    return config
   }
 
   public destroy(): void {
@@ -418,12 +487,34 @@ export class ConfigurableUnit extends Unit {
     if (this.animationManager) {
       this.animationManager.destroy()
     }
+    
+    // Clean up AI manager
+    if (this.aiManager) {
+      this.aiManager.destroy()
+    }
+    
     super.destroy()
   }
 
 
   public setCombatSystem(combatSystem: any): void {
     this.combatSystem = combatSystem
+  }
+
+  public getAIManager(): AIManager {
+    return this.aiManager
+  }
+
+  public setAIBehaviorEnabled(behaviorName: string, enabled: boolean): void {
+    this.aiManager.setBehaviorEnabled(behaviorName, enabled)
+  }
+
+  public isAIBehaviorEnabled(behaviorName: string): boolean {
+    return this.aiManager.isBehaviorEnabled(behaviorName)
+  }
+
+  public updateAIConfig(config: Partial<AIConfig>): void {
+    this.aiManager.updateConfig(config)
   }
 
   private selectBestAvailableAttackType(): string | null {
