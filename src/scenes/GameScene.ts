@@ -1,14 +1,17 @@
 import Phaser from 'phaser'
-import { Hero } from '../units'
+import { ConfigurableHero } from '../units'
 import { HeroStats } from '../units'
+import { AttackType } from '../units/UnitConfig'
+import { AnimationType } from '../units/AnimationTypes'
 import { StructureBuilder } from '../utils/StructureBuilder'
 import { MapData } from './MapEditorScene'
 import { InputManager, CameraController, MapManager, UnitManager, CombatSystem, UIManager } from '../managers'
 
 export class GameScene extends Phaser.Scene {
-  private playerHero!: Hero
+  private playerHero: ConfigurableHero | null = null
   private unitCollisionGroup!: Phaser.Physics.Arcade.Group
   private projectileGroup!: Phaser.Physics.Arcade.Group
+  private structureCollisionGroup!: Phaser.Physics.Arcade.Group
   
   // UI Elements
   private uiCamera!: Phaser.Cameras.Scene2D.Camera
@@ -28,6 +31,9 @@ export class GameScene extends Phaser.Scene {
   private resetSceneState(): void {
     console.log('🔄 Resetting GameScene state')
     
+    // Clear player hero reference before resetting managers
+    this.playerHero = null
+    
     // Reset managers if they exist
     if (this.unitManager) this.unitManager.reset()
     if (this.combatSystem) this.combatSystem.reset()
@@ -38,11 +44,192 @@ export class GameScene extends Phaser.Scene {
   }
 
   preload() {
+    // Load hero animation spritesheets for all idle directions
+    const idleAnimations = [
+      { key: 'hero_idle', file: 'Idle.png' },
+      { key: 'hero_idle_down', file: 'Idle_Down.png' },
+      { key: 'hero_idle_up', file: 'Idle_Up.png' },
+      { key: 'hero_idle_left_down', file: 'Idle_Left_Down.png' },
+      { key: 'hero_idle_left_up', file: 'Idle_Left_Up.png' },
+      { key: 'hero_idle_right_down', file: 'Idle_Right_Down.png' },
+      { key: 'hero_idle_right_up', file: 'Idle_Right_Up.png' }
+    ]
+    
+    // Load hero animation spritesheets for all walk directions
+    const walkAnimations = [
+      { key: 'hero_walk', file: 'walk.png' },
+      { key: 'hero_walk_down', file: 'walk_Down.png' },
+      { key: 'hero_walk_up', file: 'walk_Up.png' },
+      { key: 'hero_walk_left_down', file: 'walk_Left_Down.png' },
+      { key: 'hero_walk_left_up', file: 'walk_Left_Up.png' },
+      { key: 'hero_walk_right_down', file: 'walk_Right_Down.png' },
+      { key: 'hero_walk_right_up', file: 'walk_Right_Up.png' }
+    ]
+    
+    idleAnimations.forEach(anim => {
+      this.load.spritesheet(anim.key, `The Female Adventurer - Free/Idle/${anim.file}`, {
+        frameWidth: 48,
+        frameHeight: 64
+      })
+    })
+    
+    walkAnimations.forEach(anim => {
+      this.load.spritesheet(anim.key, `The Female Adventurer - Free/Walk/${anim.file}`, {
+        frameWidth: 48,
+        frameHeight: 64
+      })
+    })
+    
+    // Load samurai animation spritesheets
+    this.load.spritesheet('samurai_idle', 'assets/sprites/samurai/idle.png', {
+      frameWidth: 96,
+      frameHeight: 96
+    })
+    
+    this.load.spritesheet('samurai_walk', 'assets/sprites/samurai/run.png', {
+      frameWidth: 96,
+      frameHeight: 96
+    })
+    
+    this.load.spritesheet('samurai_attack', 'assets/sprites/samurai/attack.png', {
+      frameWidth: 96,
+      frameHeight: 96
+    })
+    
+    // Load skeleton animation spritesheets
+    this.load.spritesheet('skeleton_idle', 'Monsters_Creatures_Fantasy/Skeleton/Idle.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('skeleton_walk', 'Monsters_Creatures_Fantasy/Skeleton/Walk.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('skeleton_attack', 'Monsters_Creatures_Fantasy/Skeleton/Attack.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('skeleton_death', 'Monsters_Creatures_Fantasy/Skeleton/Death.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('skeleton_take_hit', 'Monsters_Creatures_Fantasy/Skeleton/Take Hit.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    // Load Flying Eye animation spritesheets
+    this.load.spritesheet('flying_eye_flight', 'Monsters_Creatures_Fantasy/Flying eye/Flight.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('flying_eye_attack', 'Monsters_Creatures_Fantasy/Flying eye/Attack.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('flying_eye_death', 'Monsters_Creatures_Fantasy/Flying eye/Death.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('flying_eye_take_hit', 'Monsters_Creatures_Fantasy/Flying eye/Take Hit.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    // Load Goblin animation spritesheets
+    this.load.spritesheet('goblin_idle', 'Monsters_Creatures_Fantasy/Goblin/Idle.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('goblin_run', 'Monsters_Creatures_Fantasy/Goblin/Run.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('goblin_attack', 'Monsters_Creatures_Fantasy/Goblin/Attack.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('goblin_death', 'Monsters_Creatures_Fantasy/Goblin/Death.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('goblin_take_hit', 'Monsters_Creatures_Fantasy/Goblin/Take Hit.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    // Load Mushroom animation spritesheets
+    this.load.spritesheet('mushroom_idle', 'Monsters_Creatures_Fantasy/Mushroom/Idle.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('mushroom_run', 'Monsters_Creatures_Fantasy/Mushroom/Run.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('mushroom_attack', 'Monsters_Creatures_Fantasy/Mushroom/Attack.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('mushroom_death', 'Monsters_Creatures_Fantasy/Mushroom/Death.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    this.load.spritesheet('mushroom_take_hit', 'Monsters_Creatures_Fantasy/Mushroom/Take Hit.png', {
+      frameWidth: 150,
+      frameHeight: 150
+    })
+    
+    // Load Evil Wizard 3 animation spritesheets
+    this.load.spritesheet('evil_wizard_idle', 'Evil Wizard 3/Sprites/Idle.png', {
+      frameWidth: 96,
+      frameHeight: 96
+    })
+    
+    this.load.spritesheet('evil_wizard_walk', 'Evil Wizard 3/Sprites/Walk.png', {
+      frameWidth: 96,
+      frameHeight: 96
+    })
+    
+    this.load.spritesheet('evil_wizard_attack', 'Evil Wizard 3/Sprites/Attack.png', {
+      frameWidth: 96,
+      frameHeight: 96
+    })
+    
+    this.load.spritesheet('evil_wizard_death', 'Evil Wizard 3/Sprites/Death.png', {
+      frameWidth: 96,
+      frameHeight: 96
+    })
+    
+    this.load.spritesheet('evil_wizard_take_hit', 'Evil Wizard 3/Sprites/Get hit.png', {
+      frameWidth: 96,
+      frameHeight: 96
+    })
+    
     // MapManager will handle graphics creation
   }
 
   create() {
     console.log('🎮 GameScene create() called')
+    
+    // Add scene lifecycle event handlers
+    this.events.once('shutdown', this.cleanup, this)
+    this.events.once('destroy', this.cleanup, this)
     
     // Reset scene state to ensure clean initialization
     this.resetSceneState()
@@ -52,6 +239,9 @@ export class GameScene extends Phaser.Scene {
     this.uiCamera.setZoom(1)
     
     this.setupPhysicsGroups()
+    
+    // Create hero animations
+    this.createHeroAnimations()
     
     // Initialize managers
     this.initializeManagers()
@@ -96,6 +286,11 @@ export class GameScene extends Phaser.Scene {
     this.combatSystem.updateProjectiles(this.uiCamera)
     this.unitManager.cleanupDeadUnits()
     this.inputManager.handleInput()
+    
+    // Update gold display
+    if (this.playerHero && 'gold' in this.playerHero) {
+      this.uiManager.updateGoldDisplay(this.playerHero.gold)
+    }
   }
 
   private initializeManagers(): void {
@@ -110,33 +305,93 @@ export class GameScene extends Phaser.Scene {
       scene: this,
       onHeroMove: (x: number, y: number) => this.handleHeroMove(x, y),
       onShoot: (targetX: number, targetY: number) => this.handleShoot(targetX, targetY),
+      onHeroAttack: () => this.handleHeroAttack(),
+      onMeleeAttack: (targetX: number, targetY: number) => this.handleMeleeAttack(targetX, targetY),
+      onHomingAttack: (targetX: number, targetY: number) => this.handleHomingAttack(targetX, targetY),
       onCameraDrag: (deltaX: number, deltaY: number) => this.handleCameraDrag(deltaX, deltaY),
       onCameraZoom: (delta: number) => this.cameraController.handleZoom(delta),
       onEditorToggle: () => this.handleEditorToggle(),
       onCameraCenter: () => this.handleCameraCenter(),
       onZoomIn: () => this.cameraController.zoomIn(),
       onZoomOut: () => this.cameraController.zoomOut(),
-      onZoomReset: () => this.cameraController.resetZoom()
+      onZoomReset: () => this.cameraController.resetZoom(),
+      onTestExp: () => this.handleTestExp(),
+      onKillUnit: () => this.handleKillUnit(),
+      getHeroAttackSpeed: () => {
+        if (this.playerHero && 'attackSpeed' in this.playerHero) {
+          return this.playerHero.attackSpeed
+        }
+        return 1
+      }
     })
     
     this.uiManager.setupUICamera()
+    this.uiManager.createGoldDisplay()
   }
 
   private handleHeroMove(x: number, y: number): void {
-    if (!this.playerHero) return
+    console.log(`🎯 GameScene: Move request to (${x}, ${y})`)
     
-    const path = this.unitManager.findPathForUnit(this.playerHero, x, y)
-    if (path.length > 1) {
-      console.log(`✅ GameScene: Path found, starting movement`)
-      this.playerHero.followPath(path)
-    } else {
-      console.log(`❌ GameScene: No path found to target position`)
+    if (!this.playerHero) {
+      console.log(`❌ GameScene: No playerHero available`)
+      return
     }
+    
+    console.log(`🦸 GameScene: PlayerHero available:`, {
+      name: this.playerHero.name,
+      type: this.playerHero.constructor.name,
+      position: `(${this.playerHero.isometricX}, ${this.playerHero.isometricY})`,
+      hasScene: !!this.playerHero.sprite.scene,
+      sceneKey: this.playerHero.sprite.scene?.scene?.key || 'unknown'
+    })
+    
+    this.playerHero.moveToIsometricPosition(x, y)
   }
   
   private handleShoot(targetX: number, targetY: number): void {
     if (!this.playerHero) return
+    
+    // Check if hero can use ranged attack
+    if (!this.playerHero.canUseAttackType(AttackType.RANGED)) {
+      console.log(`🚫 ${this.playerHero.name} cannot use ranged attacks - not available in config`)
+      return
+    }
+    
     this.combatSystem.shootProjectile(this.playerHero, targetX, targetY, 25, this.uiCamera)
+  }
+
+  private handleMeleeAttack(targetX: number, targetY: number): void {
+    if (!this.playerHero) return
+    
+    // Check if hero can use melee attack
+    if (!this.playerHero.canUseAttackType(AttackType.MELEE)) {
+      console.log(`🚫 ${this.playerHero.name} cannot use melee attacks - not available in config`)
+      return
+    }
+    
+    this.combatSystem.shootMeleeProjectile(this.playerHero, targetX, targetY, 35, this.uiCamera)
+  }
+
+  private handleHomingAttack(targetX: number, targetY: number): void {
+    if (!this.playerHero) return
+    
+    // Check if hero can use homing attack
+    if (!this.playerHero.canUseAttackType(AttackType.HOMING)) {
+      console.log(`🚫 ${this.playerHero.name} cannot use homing attacks - not available in config`)
+      return
+    }
+    
+    // Homing attack with 200 pixel range (about 6-7 isometric tiles)
+    this.combatSystem.shootHomingProjectile(this.playerHero, targetX, targetY, 30, 200, this.uiCamera)
+  }
+
+  private handleHeroAttack(): void {
+    if (!this.playerHero) return
+    
+    // Check if the hero has the performAttack method (both Hero and ConfigurableHero have it)
+    if ('performAttack' in this.playerHero) {
+      this.playerHero.performAttack()
+    }
   }
   
   private handleCameraDrag(deltaX: number, deltaY: number): void {
@@ -192,6 +447,310 @@ export class GameScene extends Phaser.Scene {
   private setupPhysicsGroups(): void {
     this.unitCollisionGroup = this.physics.add.group()
     this.projectileGroup = this.physics.add.group()
+    this.structureCollisionGroup = this.physics.add.group()
+    
+    // Set up collision between units and structures
+    this.setupStructureCollisions()
+  }
+  
+  private setupStructureCollisions(): void {
+    // Set up collision detection between units and wall structures
+    this.physics.add.collider(this.unitCollisionGroup, this.structureCollisionGroup, (unit, structure) => {
+      // Stop the unit when it hits a structure
+      const unitObj = unit as Phaser.Types.Physics.Arcade.GameObjectWithBody
+      const structureObj = structure as Phaser.Types.Physics.Arcade.GameObjectWithBody
+      
+      console.log(`🚧 Collision detected between unit and structure at (${structureObj.x}, ${structureObj.y})`)
+      
+      // Stop the unit's movement
+      if (unitObj.body) {
+        unitObj.body.setVelocity(0, 0)
+      }
+      
+      // If it's a configurable hero, stop movement and return to idle
+      const unitData = unitObj.getData('unit')
+      if (unitData instanceof ConfigurableHero) {
+        unitData.isMoving = false
+        unitData.path = []
+        unitData.currentPathIndex = 0
+        unitData.setAnimation(AnimationType.IDLE, unitData.currentDirection)
+        console.log(`🦸 ${unitData.name} stopped by collision, returning to idle`)
+      }
+    })
+  }
+
+  private createHeroAnimations(): void {
+    // Note: Removed early return to ensure all animations are created
+    
+    // Create all idle animations
+    const idleAnimations = [
+      'hero_idle',
+      'hero_idle_down',
+      'hero_idle_up', 
+      'hero_idle_left_down',
+      'hero_idle_left_up',
+      'hero_idle_right_down',
+      'hero_idle_right_up'
+    ]
+    
+    // Create all walk animations
+    const walkAnimations = [
+      'hero_walk',
+      'hero_walk_down',
+      'hero_walk_up',
+      'hero_walk_left_down',
+      'hero_walk_left_up',
+      'hero_walk_right_down',
+      'hero_walk_right_up'
+    ]
+    
+    idleAnimations.forEach(animKey => {
+      if (!this.anims.exists(animKey)) {
+        this.anims.create({
+          key: animKey,
+          frames: this.anims.generateFrameNumbers(animKey, { start: 0, end: 7 }),
+          frameRate: 8,
+          repeat: -1
+        })
+      }
+    })
+    
+    walkAnimations.forEach(animKey => {
+      if (!this.anims.exists(animKey)) {
+        this.anims.create({
+          key: animKey,
+          frames: this.anims.generateFrameNumbers(animKey, { start: 0, end: 7 }),
+          frameRate: 12, // Slightly faster frame rate for walking
+          repeat: -1
+        })
+      }
+    })
+    
+    // Create samurai animations for all directions
+    const samuraiDirections = ['idle', 'down', 'up', 'left_down', 'left_up', 'right_down', 'right_up']
+    
+    samuraiDirections.forEach(direction => {
+      this.anims.create({
+        key: `samurai_idle_${direction}`,
+        frames: this.anims.generateFrameNumbers('samurai_idle', { start: 0, end: 9 }),
+        frameRate: 8,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `samurai_walk_${direction}`,
+        frames: this.anims.generateFrameNumbers('samurai_walk', { start: 0, end: 15 }),
+        frameRate: 12,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `samurai_attack_${direction}`,
+        frames: this.anims.generateFrameNumbers('samurai_attack', { start: 0, end: 6 }),
+        frameRate: 10,
+        repeat: 0 // Play once for attack
+      })
+    })
+    
+    // Create skeleton animations for all directions
+    const skeletonDirections = ['idle', 'down', 'up', 'left_down', 'left_up', 'right_down', 'right_up']
+    
+    skeletonDirections.forEach(direction => {
+      this.anims.create({
+        key: `skeleton_idle_${direction}`,
+        frames: this.anims.generateFrameNumbers('skeleton_idle', { start: 0, end: 3 }),
+        frameRate: 6,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `skeleton_walk_${direction}`,
+        frames: this.anims.generateFrameNumbers('skeleton_walk', { start: 0, end: 3 }),
+        frameRate: 8,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `skeleton_attack_${direction}`,
+        frames: this.anims.generateFrameNumbers('skeleton_attack', { start: 0, end: 7 }),
+        frameRate: 12,
+        repeat: 0 // Play once for attack
+      })
+      
+      this.anims.create({
+        key: `skeleton_death_${direction}`,
+        frames: this.anims.generateFrameNumbers('skeleton_death', { start: 0, end: 3 }),
+        frameRate: 8,
+        repeat: 0 // Play once for death
+      })
+      
+      this.anims.create({
+        key: `skeleton_take_hit_${direction}`,
+        frames: this.anims.generateFrameNumbers('skeleton_take_hit', { start: 0, end: 2 }),
+        frameRate: 10,
+        repeat: 0 // Play once for taking hit
+      })
+    })
+    
+    // Create Flying Eye animations for all directions
+    const flyingEyeDirections = ['idle', 'down', 'up', 'left_down', 'left_up', 'right_down', 'right_up']
+    
+    flyingEyeDirections.forEach(direction => {
+      this.anims.create({
+        key: `flying_eye_idle_${direction}`,
+        frames: this.anims.generateFrameNumbers('flying_eye_flight', { start: 0, end: 7 }),
+        frameRate: 10,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `flying_eye_walk_${direction}`,
+        frames: this.anims.generateFrameNumbers('flying_eye_flight', { start: 0, end: 7 }),
+        frameRate: 12,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `flying_eye_attack_${direction}`,
+        frames: this.anims.generateFrameNumbers('flying_eye_attack', { start: 0, end: 7 }),
+        frameRate: 12,
+        repeat: 0 // Play once for attack
+      })
+      
+      this.anims.create({
+        key: `flying_eye_death_${direction}`,
+        frames: this.anims.generateFrameNumbers('flying_eye_death', { start: 0, end: 3 }),
+        frameRate: 8,
+        repeat: 0 // Play once for death
+      })
+      
+      this.anims.create({
+        key: `flying_eye_take_hit_${direction}`,
+        frames: this.anims.generateFrameNumbers('flying_eye_take_hit', { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: 0 // Play once for taking hit
+      })
+    })
+    
+    // Create Goblin animations for all directions
+    const goblinDirections = ['idle', 'down', 'up', 'left_down', 'left_up', 'right_down', 'right_up']
+    
+    goblinDirections.forEach(direction => {
+      this.anims.create({
+        key: `goblin_idle_${direction}`,
+        frames: this.anims.generateFrameNumbers('goblin_idle', { start: 0, end: 3 }),
+        frameRate: 6,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `goblin_walk_${direction}`,
+        frames: this.anims.generateFrameNumbers('goblin_run', { start: 0, end: 7 }),
+        frameRate: 10,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `goblin_attack_${direction}`,
+        frames: this.anims.generateFrameNumbers('goblin_attack', { start: 0, end: 7 }),
+        frameRate: 12,
+        repeat: 0 // Play once for attack
+      })
+      
+      this.anims.create({
+        key: `goblin_death_${direction}`,
+        frames: this.anims.generateFrameNumbers('goblin_death', { start: 0, end: 3 }),
+        frameRate: 8,
+        repeat: 0 // Play once for death
+      })
+      
+      this.anims.create({
+        key: `goblin_take_hit_${direction}`,
+        frames: this.anims.generateFrameNumbers('goblin_take_hit', { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: 0 // Play once for taking hit
+      })
+    })
+    
+    // Create Mushroom animations for all directions
+    const mushroomDirections = ['idle', 'down', 'up', 'left_down', 'left_up', 'right_down', 'right_up']
+    
+    mushroomDirections.forEach(direction => {
+      this.anims.create({
+        key: `mushroom_idle_${direction}`,
+        frames: this.anims.generateFrameNumbers('mushroom_idle', { start: 0, end: 3 }),
+        frameRate: 6,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `mushroom_walk_${direction}`,
+        frames: this.anims.generateFrameNumbers('mushroom_run', { start: 0, end: 7 }),
+        frameRate: 8,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `mushroom_attack_${direction}`,
+        frames: this.anims.generateFrameNumbers('mushroom_attack', { start: 0, end: 7 }),
+        frameRate: 10,
+        repeat: 0 // Play once for attack
+      })
+      
+      this.anims.create({
+        key: `mushroom_death_${direction}`,
+        frames: this.anims.generateFrameNumbers('mushroom_death', { start: 0, end: 3 }),
+        frameRate: 8,
+        repeat: 0 // Play once for death
+      })
+      
+      this.anims.create({
+        key: `mushroom_take_hit_${direction}`,
+        frames: this.anims.generateFrameNumbers('mushroom_take_hit', { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: 0 // Play once for taking hit
+      })
+    })
+    
+    // Create Evil Wizard animations for all directions
+    const evilWizardDirections = ['idle', 'down', 'up', 'left_down', 'left_up', 'right_down', 'right_up']
+    
+    evilWizardDirections.forEach(direction => {
+      this.anims.create({
+        key: `evil_wizard_idle_${direction}`,
+        frames: this.anims.generateFrameNumbers('evil_wizard_idle', { start: 0, end: 9 }),
+        frameRate: 8,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `evil_wizard_walk_${direction}`,
+        frames: this.anims.generateFrameNumbers('evil_wizard_walk', { start: 0, end: 7 }),
+        frameRate: 10,
+        repeat: -1
+      })
+      
+      this.anims.create({
+        key: `evil_wizard_attack_${direction}`,
+        frames: this.anims.generateFrameNumbers('evil_wizard_attack', { start: 0, end: 12 }),
+        frameRate: 12,
+        repeat: 0 // Play once for attack
+      })
+      
+      this.anims.create({
+        key: `evil_wizard_death_${direction}`,
+        frames: this.anims.generateFrameNumbers('evil_wizard_death', { start: 0, end: 16 }),
+        frameRate: 10,
+        repeat: 0 // Play once for death
+      })
+      
+      this.anims.create({
+        key: `evil_wizard_take_hit_${direction}`,
+        frames: this.anims.generateFrameNumbers('evil_wizard_take_hit', { start: 0, end: 2 }),
+        frameRate: 12,
+        repeat: 0 // Play once for taking hit
+      })
+    })
   }
 
   private createTestMap() {
@@ -212,7 +771,11 @@ export class GameScene extends Phaser.Scene {
     this.mapManager.createEnemyUnits(
       this.unitManager.getUnits(), 
       this.unitCollisionGroup, 
-      (unit, x, y) => this.unitManager.registerUnitPosition(unit, x, y)
+      (unit, x, y) => this.unitManager.registerUnitPosition(unit, x, y),
+      this.unitManager,
+      this.combatSystem,
+      undefined,
+      this.structureCollisionGroup
     )
     
     this.createRiver()
@@ -237,6 +800,8 @@ export class GameScene extends Phaser.Scene {
     upperRiver.forEach(water => {
       this.unitManager.addStructure(water)
       this.unitManager.registerUnitPosition(water, water.isometricX, water.isometricY)
+      // Add to structure collision group for physics blocking
+      this.mapManager.addStructureToCollisionGroup(water, this.structureCollisionGroup)
       // Make UI camera ignore world objects
       this.uiCamera.ignore(water.sprite)
     })
@@ -269,6 +834,12 @@ export class GameScene extends Phaser.Scene {
     })
     
     try {
+      // Update UnitManager with actual map dimensions
+      if (this.unitManager) {
+        this.unitManager.setMapSize(mapData.width, mapData.height)
+        console.log(`🗺️ Updated UnitManager with map size: ${mapData.width}x${mapData.height}`)
+      }
+      
       // Create all graphics first
       this.mapManager.createAllGraphics()
       
@@ -277,7 +848,7 @@ export class GameScene extends Phaser.Scene {
       this.cameraController.centerOn(512, 384)
       
       // Create player hero if none exists in the map data
-      const hasHero = mapData.units && mapData.units.some(unit => unit.type === 'hero')
+      const hasHero = mapData.units && mapData.units.some(unit => unit.type === 'hero' || unit.type === 'configurableHero')
       console.log('🏗️ Hero check:', { hasHero, unitsArray: mapData.units })
       
       if (!hasHero) {
@@ -296,8 +867,34 @@ export class GameScene extends Phaser.Scene {
         this.unitManager.getUnits(),
         this.unitCollisionGroup,
         (unit, x, y) => this.unitManager.registerUnitPosition(unit, x, y),
-        (unit, x, y) => this.unitManager.removeUnitPosition(unit, x, y)
+        (unit, x, y) => this.unitManager.removeUnitPosition(unit, x, y),
+        this.unitManager,
+        this.combatSystem,
+        undefined,
+        this.structureCollisionGroup
       )
+      
+      // Find the player hero after loading map data
+      if (!this.playerHero) {
+        const hero = this.unitManager.getUnits().find(unit => unit instanceof ConfigurableHero) as ConfigurableHero
+        if (hero) {
+          this.playerHero = hero
+          console.log('🦸 PlayerHero set after loading map data:', {
+            name: hero.name,
+            type: hero.constructor.name,
+            position: `(${hero.isometricX}, ${hero.isometricY})`,
+            hasScene: !!hero.sprite.scene
+          })
+        } else {
+          console.log('❌ No hero found in loaded units')
+        }
+      } else {
+        console.log('🦸 PlayerHero already set:', {
+          name: this.playerHero.name,
+          type: this.playerHero.constructor.name,
+          position: `(${this.playerHero.isometricX}, ${this.playerHero.isometricY})`
+        })
+      }
       
       // Add info text with metadata info
       const metadata = (mapData as any).metadata
@@ -321,7 +918,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // Delegate methods for unit pathfinding compatibility
+  // Delegate methods for unit movement compatibility
   public canUnitMoveTo(unit: any, targetX: number, targetY: number): boolean {
     return this.unitManager.canUnitMoveTo(unit, targetX, targetY)
   }
@@ -332,6 +929,19 @@ export class GameScene extends Phaser.Scene {
 
   public findPathForUnit(unit: any, targetX: number, targetY: number): Array<{x: number, y: number}> {
     return this.unitManager.findPathForUnit(unit, targetX, targetY)
+  }
+
+  // Debug methods for testing experience system
+  private handleTestExp(): void {
+    if (this.playerHero && 'debugGainExp' in this.playerHero) {
+      this.playerHero.debugGainExp(10)
+    } else {
+      console.log('🧪 DEBUG: No hero found to give experience to')
+    }
+  }
+
+  private handleKillUnit(): void {
+    this.unitManager.debugKillFirstConfigurableUnit()
   }
 
   public cleanup(): void {

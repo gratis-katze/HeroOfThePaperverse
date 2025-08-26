@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { Unit } from './Unit'
-import { BasicUnit } from './BasicUnit'
-import { Hero } from './Hero'
+import { ConfigurableUnit } from './ConfigurableUnit'
+import { ConfigurableHero } from './ConfigurableHero'
 
 export class Projectile {
   public sprite: Phaser.Physics.Arcade.Sprite
@@ -92,9 +92,11 @@ export class Projectile {
   public onHit(target: Unit): void {
     if (target === this.owner) return
     
-    if (target instanceof BasicUnit || target instanceof Hero) {
-      target.takeDamage(this.damage)
-      console.log(`💥 Projectile hit ${target.name} for ${this.damage} damage (${target.currentHealth}/${target.maxHealth} HP)`)
+    if (target instanceof ConfigurableUnit || target instanceof ConfigurableHero) {
+      target.takeDamage(this.damage, this.owner)
+      if (target instanceof ConfigurableUnit || target instanceof ConfigurableHero) {
+        console.log(`💥 Projectile hit ${target.name} for ${this.damage} damage (${target.currentHealth}/${target.maxHealth} HP)`)
+      }
     }
     
     this.destroy()

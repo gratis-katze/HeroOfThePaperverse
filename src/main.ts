@@ -7,6 +7,10 @@ const config: Phaser.Types.Core.GameConfig = {
   width: 1024,
   height: 768,
   backgroundColor: '#34495e',
+  parent: document.body,
+  dom: {
+    createContainer: true
+  },
   physics: {
     default: 'arcade',
     arcade: {

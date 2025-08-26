@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
-import { Structure, BasicUnit, Hero } from '../units'
-import { BasicUnitType, CombatStats, HeroStats, StructureType } from '../units'
+import { Structure, ConfigurableUnit, ConfigurableHero } from '../units'
+import { HeroStats, StructureType, UnitConfig, AttackType } from '../units'
 import { MapData, TerrainType } from '../scenes/MapEditorScene'
 import { IsometricGraphics } from '../graphics/IsometricGraphics'
 
@@ -36,10 +36,14 @@ export class MapManager {
   public loadMapFromData(
     mapData: MapData, 
     structures: Structure[], 
-    units: Array<Hero | BasicUnit | Structure>, 
+    units: Array<ConfigurableUnit | ConfigurableHero | Structure>, 
     unitCollisionGroup: Phaser.Physics.Arcade.Group,
     onRegisterUnit: (unit: any, x: number, y: number) => void,
-    onRemoveUnit: (unit: any, x: number, y: number) => void
+    onRemoveUnit: (unit: any, x: number, y: number) => void,
+    _unitManager?: any,
+    combatSystem?: any,
+    _aiManager?: any,
+    structureCollisionGroup?: Phaser.Physics.Arcade.Group
   ): void {
     // Clear existing terrain
     this.terrain.forEach(terrainSprite => terrainSprite.destroy())
@@ -55,8 +59,8 @@ export class MapManager {
     // Remove non-hero units
     for (let i = units.length - 1; i >= 0; i--) {
       const unit = units[i]
-      if (!(unit instanceof Hero)) {
-        if (unit instanceof BasicUnit) {
+      if (!(unit instanceof ConfigurableHero)) {
+        if (unit instanceof ConfigurableUnit) {
           unitCollisionGroup.remove(unit.sprite)
         }
         unit.destroy()
@@ -78,14 +82,65 @@ export class MapManager {
       structures.push(structure)
       units.push(structure)
       onRegisterUnit(structure, structData.x, structData.y)
+      
+      // Add wall structures to collision group for physics blocking
+      if (structureCollisionGroup && !structure.isPassable) {
+        structureCollisionGroup.add(structure.sprite)
+      }
     })
 
     // Load units from map data
     mapData.units.forEach(unitData => {
-      if (unitData.type !== 'hero') { // Don't replace the player hero
-        const unit = this.loadUnit(unitData.x, unitData.y, unitData.type, unitData.stats as CombatStats, unitCollisionGroup)
+      if (unitData.type === 'configurable') {
+        const unit = new ConfigurableUnit(this.scene, unitData.x, unitData.y, `Loaded ${unitData.type}`, unitData.stats as UnitConfig)
+        unitCollisionGroup.add(unit.sprite)
+        
+        // AI system has been removed
+        
+        // Set combat system if available
+        if (combatSystem) {
+          unit.setCombatSystem(combatSystem)
+        }
+        
+        // Make UI camera ignore world objects
+        this.uiCamera.ignore(unit.sprite)
+        if (unit.healthBar) {
+          this.uiCamera.ignore(unit.healthBar.getContainer())
+        }
+        
         units.push(unit)
         onRegisterUnit(unit, unitData.x, unitData.y)
+      } else if (unitData.type === 'configurableHero') {
+        // Create configurable hero from map data
+        const heroData = unitData.stats as { config: UnitConfig, heroStats: HeroStats }
+        const hero = new ConfigurableHero(
+          this.scene,
+          unitData.x,
+          unitData.y,
+          'Custom Hero',
+          heroData.config,
+          heroData.heroStats
+        )
+        unitCollisionGroup.add(hero.sprite)
+        
+        // Make UI camera ignore world objects
+        this.uiCamera.ignore(hero.sprite)
+        if (hero.healthBar) {
+          this.uiCamera.ignore(hero.healthBar.getContainer())
+        }
+        // Handle level display UI elements
+        if ((hero as any).levelText) {
+          this.uiCamera.ignore((hero as any).levelText)
+        }
+        if ((hero as any).expCircle) {
+          this.uiCamera.ignore((hero as any).expCircle)
+        }
+        if ((hero as any).expBackground) {
+          this.uiCamera.ignore((hero as any).expBackground)
+        }
+        
+        units.push(hero)
+        onRegisterUnit(hero, unitData.x, unitData.y)
       }
     })
 
@@ -140,21 +195,30 @@ export class MapManager {
     return { x, y }
   }
 
-  private loadUnit(x: number, y: number, type: BasicUnitType, stats: CombatStats, unitCollisionGroup: Phaser.Physics.Arcade.Group): BasicUnit {
-    const unit = new BasicUnit(this.scene, x, y, type, `Loaded ${type}`, type, stats)
-    unitCollisionGroup.add(unit.sprite)
-    
-    // Make UI camera ignore world objects
-    this.uiCamera.ignore(unit.sprite)
-    if (unit.healthBar) {
-      this.uiCamera.ignore(unit.healthBar.getContainer())
-    }
-    
-    return unit
-  }
 
-  public createHero(x: number, y: number, stats: HeroStats, unitCollisionGroup: Phaser.Physics.Arcade.Group): Hero {
-    const hero = new Hero(this.scene, x, y, 'hero', 'Player Hero', stats)
+  /*public createHero(x: number, y: number, stats: HeroStats, unitCollisionGroup: Phaser.Physics.Arcade.Group): ConfigurableHero {
+    // Use animated spritesheet if available, otherwise fallback to static texture
+    const texture = this.scene.textures.exists('hero_idle') ? 'hero_idle' : 'hero'
+    // Create a default unit config for the hero
+    const defaultConfig: UnitConfig = {
+      health: 100 + (stats.strength * 10),
+      attack: 10 + (stats.strength * 2),
+      defense: 5 + (stats.strength),
+      attackSpeed: 1 + (stats.agility * 0.1),
+      movementSpeed: 150 + (stats.agility * 5),
+      attackRange: 1,
+      availableAttackTypes: {
+        melee: { enabled: true },
+        ranged: { enabled: true },
+        homing: { enabled: true }
+      },
+      activeAttackType: AttackType.MELEE,
+      goldOnDeath: 0,
+      expOnDeath: 0,
+      animationPrefix: 'hero',
+      texture: texture
+    }
+    const hero = new ConfigurableHero(this.scene, x, y, 'Player Hero', defaultConfig, stats)
     unitCollisionGroup.add(hero.sprite)
     
     // Make UI camera ignore world objects
@@ -164,40 +228,15 @@ export class MapManager {
     }
     
     return hero
-  }
+  }*/
 
-  public createEnemyUnits(
-    units: Array<Hero | BasicUnit | Structure>, 
-    unitCollisionGroup: Phaser.Physics.Arcade.Group,
-    onRegisterUnit: (unit: any, x: number, y: number) => void
-  ): void {
-    // Create warrior enemy
-    const warriorStats: CombatStats = { health: 60, attack: 15, defense: 3, attackSpeed: 1, movementSpeed: 100 }
-    const warrior = new BasicUnit(this.scene, 60, 15, 'warrior', 'Enemy Warrior', BasicUnitType.WARRIOR, warriorStats)
-    units.push(warrior)
-    onRegisterUnit(warrior, 60, 15)
-    unitCollisionGroup.add(warrior.sprite)
-    
-    // Make UI camera ignore world objects
-    this.uiCamera.ignore(warrior.sprite)
-    if (warrior.healthBar) {
-      this.uiCamera.ignore(warrior.healthBar.getContainer())
+
+
+  public addStructureToCollisionGroup(structure: Structure, structureCollisionGroup: Phaser.Physics.Arcade.Group): void {
+    // Add wall structures to collision group for physics blocking
+    if (!structure.isPassable) {
+      structureCollisionGroup.add(structure.sprite)
     }
-    
-    // Create archer enemy  
-    const archerStats: CombatStats = { health: 40, attack: 20, defense: 1, attackSpeed: 1.5, movementSpeed: 120 }
-    const archer = new BasicUnit(this.scene, 18, 8, 'archer', 'Enemy Archer', BasicUnitType.ARCHER, archerStats)
-    units.push(archer)
-    onRegisterUnit(archer, 18, 8)
-    unitCollisionGroup.add(archer.sprite)
-    
-    // Make UI camera ignore world objects
-    this.uiCamera.ignore(archer.sprite)
-    if (archer.healthBar) {
-      this.uiCamera.ignore(archer.healthBar.getContainer())
-    }
-    
-    console.log(`💀 Created ${units.filter(u => u instanceof BasicUnit).length} enemy units for combat testing`)
   }
 
   public destroy(): void {

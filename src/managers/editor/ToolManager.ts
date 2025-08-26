@@ -1,10 +1,10 @@
 import { EditorTool, TerrainType } from '../../scenes/MapEditorScene'
-import { StructureType, BasicUnitType } from '../../units'
+import { StructureType } from '../../units'
 
 export class ToolManager {
-  private currentTool: EditorTool = EditorTool.PLACE
+  private currentTool: EditorTool = EditorTool.NONE
   private selectedBlockType: StructureType = StructureType.WALL
-  private selectedUnitType: 'hero' | BasicUnitType = 'hero'
+  private selectedUnitType: string = 'configurable'
   private selectedTerrainType: TerrainType = TerrainType.GRASS
   private activeItemType: 'terrain' | 'block' | 'unit' = 'terrain'
   private mapWidth: number = 50
@@ -23,7 +23,7 @@ export class ToolManager {
     console.log(`🧱 Selected block: ${type}`)
   }
 
-  public setUnitType(type: 'hero' | BasicUnitType): void {
+  public setUnitType(type: string): void {
     this.selectedUnitType = type
     this.activeItemType = 'unit'
     console.log(`👥 Selected unit: ${type}`)
@@ -50,7 +50,7 @@ export class ToolManager {
     return this.selectedBlockType
   }
 
-  public getSelectedUnitType(): 'hero' | BasicUnitType {
+  public getSelectedUnitType(): string {
     return this.selectedUnitType
   }
 
@@ -70,13 +70,15 @@ export class ToolManager {
     const mode = this.activeItemType === 'terrain' ? `Terrain: ${this.selectedTerrainType}` :
                  this.activeItemType === 'block' ? `Block: ${this.selectedBlockType}` : 
                  `Unit: ${this.selectedUnitType}`
-    return `${this.currentTool.toUpperCase()} - ${mode} | Map: ${this.mapWidth}x${this.mapHeight} | ${cameraInfo}`
+    const toolText = this.currentTool === EditorTool.ERASE ? 'ERASE' : 
+                    this.currentTool === EditorTool.EDIT ? 'EDIT' : 'PLACE'
+    return `${toolText} - ${mode} | Map: ${this.mapWidth}x${this.mapHeight} | ${cameraInfo}`
   }
 
   public isToolActive(toolName: string): boolean {
     switch (toolName) {
-      case 'Place':
-        return this.currentTool === EditorTool.PLACE
+      case 'Edit':
+        return this.currentTool === EditorTool.EDIT
       case 'Erase':
         return this.currentTool === EditorTool.ERASE
       default:
@@ -122,12 +124,10 @@ export class ToolManager {
     if (this.activeItemType !== 'unit') return false
     
     switch (unitName) {
-      case 'Hero':
-        return this.selectedUnitType === 'hero'
-      case 'Warrior':
-        return this.selectedUnitType === BasicUnitType.WARRIOR
-      case 'Archer':
-        return this.selectedUnitType === BasicUnitType.ARCHER
+      case 'Configurable Unit':
+        return this.selectedUnitType === 'configurable'
+      case 'Configurable Hero':
+        return this.selectedUnitType === 'configurableHero'
       default:
         return false
     }

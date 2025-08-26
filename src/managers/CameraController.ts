@@ -18,7 +18,7 @@ export class CameraController {
   }
 
   public handleKeyboardMovement(deltaX: number, deltaY: number): void {
-    const adjustedSpeed = 1.0 / this.zoomLevel
+    const adjustedSpeed = 3.0 / this.zoomLevel
     this.camera.scrollX += deltaX * adjustedSpeed
     this.camera.scrollY += deltaY * adjustedSpeed
   }
@@ -30,7 +30,10 @@ export class CameraController {
     if (newZoom !== this.zoomLevel) {
       this.zoomLevel = newZoom
       this.camera.setZoom(this.zoomLevel)
-      console.log(`🔍 Zoom: ${this.zoomLevel.toFixed(2)}x`)
+      // Reduce logging frequency - only log every 10th zoom change
+      if (Math.random() < 0.1) {
+        console.log(`🔍 Zoom: ${this.zoomLevel.toFixed(2)}x`)
+      }
     }
   }
 

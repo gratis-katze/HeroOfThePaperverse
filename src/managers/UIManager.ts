@@ -4,6 +4,7 @@ export class UIManager {
   private scene: Phaser.Scene
   private uiCamera: Phaser.Cameras.Scene2D.Camera
   private loadingContainer?: Phaser.GameObjects.Container
+  private goldDisplay?: Phaser.GameObjects.Text
 
   constructor(scene: Phaser.Scene, uiCamera: Phaser.Cameras.Scene2D.Camera) {
     this.scene = scene
@@ -115,10 +116,45 @@ export class UIManager {
     }
   }
 
+  public createGoldDisplay(): void {
+    if (this.goldDisplay) {
+      return // Already exists
+    }
+
+    this.goldDisplay = this.scene.add.text(
+      this.scene.cameras.main.width - 10, 
+      10, 
+      '💰 0', 
+      {
+        fontSize: '18px',
+        color: '#ffcc00',
+        fontStyle: 'bold',
+        backgroundColor: '#000000',
+        padding: { x: 8, y: 4 }
+      }
+    )
+    
+    this.goldDisplay.setOrigin(1, 0) // Anchor to top-right
+    
+    // Make only the UI camera render the gold display
+    this.scene.cameras.main.ignore(this.goldDisplay)
+  }
+
+  public updateGoldDisplay(gold: number): void {
+    if (this.goldDisplay) {
+      this.goldDisplay.setText(`💰 ${gold}`)
+    }
+  }
+
   public destroy(): void {
     if (this.loadingContainer) {
       this.loadingContainer.destroy()
       this.loadingContainer = undefined
+    }
+    
+    if (this.goldDisplay) {
+      this.goldDisplay.destroy()
+      this.goldDisplay = undefined
     }
   }
 }

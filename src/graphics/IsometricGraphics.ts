@@ -2,6 +2,12 @@ import Phaser from 'phaser'
 
 export class IsometricGraphics {
   static createHeroGraphic(scene: Phaser.Scene, name: string): void {
+    // Check if animated spritesheet is available
+    if (scene.textures.exists('hero_idle')) {
+      // Use animated sprite instead of static graphic
+      return
+    }
+    
     const graphics = scene.add.graphics()
     
     // Hero - Golden cube with crown-like top
@@ -133,6 +139,96 @@ export class IsometricGraphics {
     graphics.lineTo(20, 14)
     graphics.strokePath()
     graphics.strokeRect(15, 14, 2, 4)
+    
+    graphics.generateTexture(name, 32, 40)
+    graphics.destroy()
+  }
+
+  static createMageGraphic(scene: Phaser.Scene, name: string): void {
+    const graphics = scene.add.graphics()
+    
+    // Mage - Purple cube with staff marking
+    graphics.fillStyle(0x9b59b6)
+    graphics.beginPath()
+    graphics.moveTo(16, 8)
+    graphics.lineTo(28, 16)
+    graphics.lineTo(16, 24)
+    graphics.lineTo(4, 16)
+    graphics.closePath()
+    graphics.fillPath()
+    
+    // Left face
+    graphics.fillStyle(0x8e44ad)
+    graphics.beginPath()
+    graphics.moveTo(4, 16)
+    graphics.lineTo(16, 24)
+    graphics.lineTo(16, 36)
+    graphics.lineTo(4, 28)
+    graphics.closePath()
+    graphics.fillPath()
+    
+    // Right face
+    graphics.fillStyle(0x7d3c98)
+    graphics.beginPath()
+    graphics.moveTo(16, 24)
+    graphics.lineTo(28, 16)
+    graphics.lineTo(28, 28)
+    graphics.lineTo(16, 36)
+    graphics.closePath()
+    graphics.fillPath()
+    
+    // Staff mark on top - a small orb and line
+    graphics.fillStyle(0xf1c40f)
+    graphics.fillCircle(16, 12, 2)
+    graphics.lineStyle(2, 0x784212)
+    graphics.strokeRect(15, 14, 2, 6)
+    
+    graphics.generateTexture(name, 32, 40)
+    graphics.destroy()
+  }
+
+  static createScoutGraphic(scene: Phaser.Scene, name: string): void {
+    const graphics = scene.add.graphics()
+    
+    // Scout - Brown cube with feather marking
+    graphics.fillStyle(0xd68910)
+    graphics.beginPath()
+    graphics.moveTo(16, 8)
+    graphics.lineTo(28, 16)
+    graphics.lineTo(16, 24)
+    graphics.lineTo(4, 16)
+    graphics.closePath()
+    graphics.fillPath()
+    
+    // Left face
+    graphics.fillStyle(0xb7950b)
+    graphics.beginPath()
+    graphics.moveTo(4, 16)
+    graphics.lineTo(16, 24)
+    graphics.lineTo(16, 36)
+    graphics.lineTo(4, 28)
+    graphics.closePath()
+    graphics.fillPath()
+    
+    // Right face
+    graphics.fillStyle(0x9a7d0a)
+    graphics.beginPath()
+    graphics.moveTo(16, 24)
+    graphics.lineTo(28, 16)
+    graphics.lineTo(28, 28)
+    graphics.lineTo(16, 36)
+    graphics.closePath()
+    graphics.fillPath()
+    
+    // Feather mark on top
+    graphics.lineStyle(2, 0x7d6608)
+    graphics.strokeRect(15, 10, 2, 8)
+    graphics.beginPath()
+    graphics.moveTo(13, 12)
+    graphics.lineTo(15, 10)
+    graphics.lineTo(17, 10)
+    graphics.lineTo(19, 12)
+    graphics.strokePath()
     
     graphics.generateTexture(name, 32, 40)
     graphics.destroy()

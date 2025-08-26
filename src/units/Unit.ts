@@ -85,5 +85,10 @@ export abstract class Unit {
     return { x: this.isometricX, y: this.isometricY }
   }
 
+  public takeDamage(amount: number, _attacker?: Unit): number {
+    // Default implementation - subclasses should override this
+    return amount
+  }
+
   public abstract update(time: number, delta: number): void
 }

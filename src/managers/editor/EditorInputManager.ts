@@ -6,6 +6,7 @@ export interface EditorInputConfig {
   navBarHeight: number
   onPlaceItem: (isoX: number, isoY: number) => void
   onEraseItem: (isoX: number, isoY: number) => void
+  onEditItem: (isoX: number, isoY: number) => void
   onCameraDrag: (deltaX: number, deltaY: number, startX: number, startY: number) => void
   onCameraZoom: (deltaY: number) => void
   onStatusUpdate: () => void
@@ -15,7 +16,7 @@ export interface EditorInputConfig {
 export class EditorInputManager {
   private scene: Phaser.Scene
   private config: EditorInputConfig
-  private currentTool: EditorTool = EditorTool.PLACE
+  private currentTool: EditorTool = EditorTool.NONE
   
   // Camera drag state
   private isDragging: boolean = false
@@ -61,10 +62,13 @@ export class EditorInputManager {
         const worldPoint = this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y)
         const isoCoords = this.screenToIsometric(worldPoint.x, worldPoint.y)
         
-        if (this.currentTool === EditorTool.PLACE) {
-          this.config.onPlaceItem(isoCoords.x, isoCoords.y)
-        } else {
+        if (this.currentTool === EditorTool.ERASE) {
           this.config.onEraseItem(isoCoords.x, isoCoords.y)
+        } else if (this.currentTool === EditorTool.EDIT) {
+          this.config.onEditItem(isoCoords.x, isoCoords.y)
+        } else {
+          // Default behavior: place items
+          this.config.onPlaceItem(isoCoords.x, isoCoords.y)
         }
       }
     })

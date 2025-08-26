@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
-import { StructureType, BasicUnitType, CombatStats, HeroStats } from '../units'
+import { StructureType, HeroStats, ConfigurableUnit, ConfigurableHero, UnitConfig } from '../units'
 import { IsometricGraphics } from '../graphics/IsometricGraphics'
-import { EditorInputManager, EditorUIManager, GridManager, PlacementManager, MapDataManager, ToolManager } from '../managers/editor'
+import { EditorInputManager, EditorUIManager, GridManager, PlacementManager, MapDataManager, ToolManager, UnitConfigModal } from '../managers/editor'
 
 export enum TerrainType {
   GRASS = 'grass',
@@ -27,14 +27,15 @@ export interface MapData {
   units: Array<{
     x: number
     y: number
-    type: 'hero' | BasicUnitType
-    stats?: CombatStats | HeroStats
+    type: 'hero' | 'configurable' | string
+    stats?: HeroStats | any
   }>
 }
 
 export enum EditorTool {
-  PLACE = 'place',
-  ERASE = 'erase'
+  ERASE = 'erase',
+  EDIT = 'edit',
+  NONE = 'none' // Default state for placing items
 }
 
 export class MapEditorScene extends Phaser.Scene {
@@ -59,14 +60,22 @@ export class MapEditorScene extends Phaser.Scene {
 
   preload() {
     this.createAllGraphics()
+    this.loadHeroAnimations()
   }
 
   create() {
     console.log('🎨 MapEditorScene create() called')
     
+    // Add scene lifecycle event handlers
+    this.events.once('shutdown', this.cleanup, this)
+    this.events.once('destroy', this.cleanup, this)
+    
     // Create UI camera that stays at zoom level 1 and renders only UI elements
     this.uiCamera = this.cameras.add(0, 0, this.cameras.main.width, this.cameras.main.height)
     this.uiCamera.setZoom(1)
+    
+    // Create hero animations for use with ConfigurableUnits
+    this.createHeroAnimations()
     
     // Initialize managers
     this.initializeManagers()
@@ -131,6 +140,7 @@ export class MapEditorScene extends Phaser.Scene {
       navBarHeight: this.uiManager.getNavBarHeight(),
       onPlaceItem: (isoX: number, isoY: number) => this.handlePlaceItem(isoX, isoY),
       onEraseItem: (isoX: number, isoY: number) => this.handleEraseItem(isoX, isoY),
+      onEditItem: (isoX: number, isoY: number) => this.handleEditItem(isoX, isoY),
       onCameraDrag: (deltaX: number, deltaY: number, startX: number, startY: number) => this.handleCameraDrag(deltaX, deltaY, startX, startY),
       onCameraZoom: (deltaY: number) => this.handleCameraZoom(deltaY),
       onStatusUpdate: () => this.updateStatusText(),
@@ -145,6 +155,8 @@ export class MapEditorScene extends Phaser.Scene {
     IsometricGraphics.createHeroGraphic(this, 'hero')
     IsometricGraphics.createWarriorGraphic(this, 'warrior')
     IsometricGraphics.createArcherGraphic(this, 'archer')
+    IsometricGraphics.createMageGraphic(this, 'mage')
+    IsometricGraphics.createScoutGraphic(this, 'scout')
     IsometricGraphics.createWaterBlockGraphic(this, 'water_block')
     IsometricGraphics.createWallBlockGraphic(this, 'wall_block')
     IsometricGraphics.createRockBlockGraphic(this, 'rock_block')
@@ -173,6 +185,10 @@ export class MapEditorScene extends Phaser.Scene {
     this.placementManager.eraseItem(isoX, isoY)
   }
 
+  private handleEditItem(isoX: number, isoY: number): void {
+    this.placementManager.editItem(isoX, isoY)
+  }
+
   private handleCameraDrag(deltaX: number, deltaY: number, startX: number, startY: number): void {
     this.cameras.main.setScroll(
       startX + deltaX / this.zoomLevel,
@@ -197,7 +213,7 @@ export class MapEditorScene extends Phaser.Scene {
     switch (categoryKey) {
       case 'tools':
         return [
-          { label: 'Place', action: () => this.setTool(EditorTool.PLACE) },
+          { label: 'Edit', action: () => this.setTool(EditorTool.EDIT) },
           { label: 'Erase', action: () => this.setTool(EditorTool.ERASE) }
         ]
       case 'terrain':
@@ -216,9 +232,8 @@ export class MapEditorScene extends Phaser.Scene {
         ]
       case 'units':
         return [
-          { label: 'Hero', action: () => this.setUnitType('hero') },
-          { label: 'Warrior', action: () => this.setUnitType(BasicUnitType.WARRIOR) },
-          { label: 'Archer', action: () => this.setUnitType(BasicUnitType.ARCHER) }
+          { label: 'Configurable Unit', action: () => this.setUnitType('configurable') },
+          { label: 'Configurable Hero', action: () => this.setUnitType('configurableHero') }
         ]
       case 'map':
         return [
@@ -261,13 +276,17 @@ export class MapEditorScene extends Phaser.Scene {
 
   private setBlockType(type: StructureType): void {
     this.toolManager.setBlockType(type)
+    this.toolManager.setTool(EditorTool.NONE) // Switch to placement mode
+    this.inputManager.setTool(EditorTool.NONE)
     this.uiManager.setActiveCategory('blocks')
     this.updateStatusText()
     this.refreshNavBar()
   }
 
-  private setUnitType(type: 'hero' | BasicUnitType): void {
+  private setUnitType(type: string): void {
     this.toolManager.setUnitType(type)
+    this.toolManager.setTool(EditorTool.NONE) // Switch to placement mode
+    this.inputManager.setTool(EditorTool.NONE)
     this.uiManager.setActiveCategory('units')
     this.updateStatusText()
     this.refreshNavBar()
@@ -275,6 +294,8 @@ export class MapEditorScene extends Phaser.Scene {
 
   private setTerrainType(type: TerrainType): void {
     this.toolManager.setTerrainType(type)
+    this.toolManager.setTool(EditorTool.NONE) // Switch to placement mode
+    this.inputManager.setTool(EditorTool.NONE)
     this.uiManager.setActiveCategory('terrain')
     this.updateStatusText()
     this.refreshNavBar()
@@ -361,8 +382,58 @@ export class MapEditorScene extends Phaser.Scene {
       
       if (validatedData.units) {
         validatedData.units.forEach(unitData => {
-          this.toolManager.setUnitType(unitData.type)
-          this.placementManager.placeItem(unitData.x, unitData.y, 'unit', unitData.type)
+          if (unitData.type === 'configurable' && unitData.stats) {
+            // Create configurable unit directly for loading
+            const config = unitData.stats as UnitConfig
+            const unit = new ConfigurableUnit(
+              this,
+              unitData.x,
+              unitData.y,
+              'Custom Unit',
+              config
+            )
+            unit.sprite.setCollideWorldBounds(false)
+            unit.sprite.setDepth(100 + unitData.x + unitData.y)
+            this.placementManager.getUnits().push(unit)
+            this.placementManager.getPlacedItems().set(`${unitData.x},${unitData.y}`, unit)
+            this.uiCamera.ignore(unit.sprite)
+            if (unit.healthBar) {
+              this.uiCamera.ignore(unit.healthBar.getContainer())
+            }
+          } else if (unitData.type === 'configurableHero' && unitData.stats) {
+            // Create configurable hero directly for loading
+            const heroData = unitData.stats as { config: UnitConfig, heroStats: HeroStats }
+            const hero = new ConfigurableHero(
+              this,
+              unitData.x,
+              unitData.y,
+              'Custom Hero',
+              heroData.config,
+              heroData.heroStats
+            )
+            hero.sprite.setCollideWorldBounds(false)
+            hero.sprite.setDepth(100 + unitData.x + unitData.y)
+            this.placementManager.getUnits().push(hero)
+            this.placementManager.getPlacedItems().set(`${unitData.x},${unitData.y}`, hero)
+            this.uiCamera.ignore(hero.sprite)
+            if (hero.healthBar) {
+              this.uiCamera.ignore(hero.healthBar.getContainer())
+            }
+            // Handle level display UI elements
+            if ((hero as any).levelText) {
+              this.uiCamera.ignore((hero as any).levelText)
+            }
+            if ((hero as any).expCircle) {
+              this.uiCamera.ignore((hero as any).expCircle)
+            }
+            if ((hero as any).expBackground) {
+              this.uiCamera.ignore((hero as any).expBackground)
+            }
+          } else {
+            // Handle old unit types (for backward compatibility)
+            this.toolManager.setUnitType('unit')
+            this.placementManager.placeItem(unitData.x, unitData.y, 'unit', unitData.type)
+          }
         })
       }
       
@@ -389,9 +460,9 @@ export class MapEditorScene extends Phaser.Scene {
     const ISO_WIDTH = 32
     const ISO_HEIGHT = 16
     
-    // Calculate map bounds in screen coordinates
-    const mapBoundsX = width * ISO_WIDTH * 2
-    const mapBoundsY = height * ISO_HEIGHT * 2
+    // Calculate map bounds in screen coordinates with larger buffer for units
+    const mapBoundsX = width * ISO_WIDTH * 4
+    const mapBoundsY = height * ISO_HEIGHT * 4
     
     this.cameras.main.setZoom(this.zoomLevel)
     this.cameras.main.setBounds(-mapBoundsX, -mapBoundsY, mapBoundsX * 2, mapBoundsY * 2)
@@ -417,10 +488,98 @@ export class MapEditorScene extends Phaser.Scene {
     )
   }
 
+  private loadHeroAnimations(): void {
+    // Load hero animation spritesheets for all idle directions
+    const idleAnimations = [
+      { key: 'hero_idle', file: 'Idle.png' },
+      { key: 'hero_idle_down', file: 'Idle_Down.png' },
+      { key: 'hero_idle_up', file: 'Idle_Up.png' },
+      { key: 'hero_idle_left_down', file: 'Idle_Left_Down.png' },
+      { key: 'hero_idle_left_up', file: 'Idle_Left_Up.png' },
+      { key: 'hero_idle_right_down', file: 'Idle_Right_Down.png' },
+      { key: 'hero_idle_right_up', file: 'Idle_Right_Up.png' }
+    ]
+    
+    // Load hero animation spritesheets for all walk directions
+    const walkAnimations = [
+      { key: 'hero_walk', file: 'walk.png' },
+      { key: 'hero_walk_down', file: 'walk_Down.png' },
+      { key: 'hero_walk_up', file: 'walk_Up.png' },
+      { key: 'hero_walk_left_down', file: 'walk_Left_Down.png' },
+      { key: 'hero_walk_left_up', file: 'walk_Left_Up.png' },
+      { key: 'hero_walk_right_down', file: 'walk_Right_Down.png' },
+      { key: 'hero_walk_right_up', file: 'walk_Right_Up.png' }
+    ]
+    
+    idleAnimations.forEach(anim => {
+      this.load.spritesheet(anim.key, `The Female Adventurer - Free/Idle/${anim.file}`, {
+        frameWidth: 48,
+        frameHeight: 64
+      })
+    })
+    
+    walkAnimations.forEach(anim => {
+      this.load.spritesheet(anim.key, `The Female Adventurer - Free/Walk/${anim.file}`, {
+        frameWidth: 48,
+        frameHeight: 64
+      })
+    })
+  }
+
+  private createHeroAnimations(): void {
+    // Create all idle animations
+    const idleAnimations = [
+      'hero_idle',
+      'hero_idle_down',
+      'hero_idle_up', 
+      'hero_idle_left_down',
+      'hero_idle_left_up',
+      'hero_idle_right_down',
+      'hero_idle_right_up'
+    ]
+    
+    // Create all walk animations
+    const walkAnimations = [
+      'hero_walk',
+      'hero_walk_down',
+      'hero_walk_up',
+      'hero_walk_left_down',
+      'hero_walk_left_up',
+      'hero_walk_right_down',
+      'hero_walk_right_up'
+    ]
+    
+    idleAnimations.forEach(animKey => {
+      if (this.textures.exists(animKey)) {
+        this.anims.create({
+          key: animKey,
+          frames: this.anims.generateFrameNumbers(animKey, { start: 0, end: 7 }),
+          frameRate: 8,
+          repeat: -1
+        })
+      }
+    })
+    
+    walkAnimations.forEach(animKey => {
+      if (this.textures.exists(animKey)) {
+        this.anims.create({
+          key: animKey,
+          frames: this.anims.generateFrameNumbers(animKey, { start: 0, end: 7 }),
+          frameRate: 12, // Slightly faster frame rate for walking
+          repeat: -1
+        })
+      }
+    })
+  }
+
   public cleanup(): void {
     if (this.inputManager) this.inputManager.destroy()
     if (this.uiManager) this.uiManager.destroy()
     if (this.gridManager) this.gridManager.destroy()
     if (this.placementManager) this.placementManager.destroy()
+    
+    // Destroy the UnitConfigModal singleton when scene is cleaned up
+    UnitConfigModal.destroyInstance()
+    console.log('🎨 MapEditorScene cleanup complete - modal singleton destroyed')
   }
 }

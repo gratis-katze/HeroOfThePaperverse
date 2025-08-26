@@ -1,24 +1,30 @@
 import Phaser from 'phaser'
-import { Structure, BasicUnit, Hero, StructureType, BasicUnitType, CombatStats, HeroStats } from '../../units'
+import { Structure, ConfigurableUnit, ConfigurableHero, StructureType, UnitConfig, HeroStats } from '../../units'
 import { TerrainType } from '../../scenes/MapEditorScene'
+import { UnitConfigModal } from './UnitConfigModal'
 
 export class PlacementManager {
   private scene: Phaser.Scene
   private uiCamera: Phaser.Cameras.Scene2D.Camera
   private terrain: Map<string, Phaser.GameObjects.Image> = new Map()
   private structures: Array<Structure> = []
-  private units: Array<Hero | BasicUnit> = []
-  private placedItems: Map<string, Structure | Hero | BasicUnit> = new Map()
+  private units: Array<ConfigurableUnit | ConfigurableHero> = []
+  private placedItems: Map<string, Structure | ConfigurableUnit | ConfigurableHero> = new Map()
+  private unitConfigModal: UnitConfigModal
   private readonly ISO_WIDTH = 32
   private readonly ISO_HEIGHT = 16
 
   constructor(scene: Phaser.Scene, uiCamera: Phaser.Cameras.Scene2D.Camera) {
     this.scene = scene
     this.uiCamera = uiCamera
+    this.unitConfigModal = UnitConfigModal.getInstance(scene, uiCamera)
+    console.log('🎨 PlacementManager using UnitConfigModal singleton')
   }
 
   public placeItem(isoX: number, isoY: number, itemType: 'terrain' | 'block' | 'unit', selectedType: any): void {
     const key = `${isoX},${isoY}`
+    
+    console.log(`🎨 PlacementManager.placeItem called: itemType=${itemType}, selectedType=${selectedType}, position=(${isoX},${isoY})`)
     
     if (itemType === 'terrain') {
       this.placeTerrain(isoX, isoY, selectedType as TerrainType)
@@ -30,8 +36,9 @@ export class PlacementManager {
       
       if (itemType === 'block') {
         this.placeBlock(isoX, isoY, selectedType as StructureType)
-      } else {
-        this.placeUnit(isoX, isoY, selectedType as ('hero' | BasicUnitType))
+      } else if (itemType === 'unit') {
+        console.log(`🎨 About to show unit config modal for ${selectedType}`)
+        this.showUnitConfigModal(isoX, isoY, selectedType)
       }
     }
     
@@ -54,6 +61,9 @@ export class PlacementManager {
       blockType
     )
     
+    // Set depth for blocks (above terrain, below units)
+    structure.sprite.setDepth(50 + isoX + isoY)
+    
     this.structures.push(structure)
     this.placedItems.set(`${isoX},${isoY}`, structure)
     
@@ -61,16 +71,60 @@ export class PlacementManager {
     this.uiCamera.ignore(structure.sprite)
   }
 
-  private placeUnit(isoX: number, isoY: number, unitType: 'hero' | BasicUnitType): void {
-    let unit: Hero | BasicUnit
+  private showUnitConfigModal(isoX: number, isoY: number, unitType: string): void {
+    console.log(`🎭 showUnitConfigModal called for position (${isoX}, ${isoY}) - ${unitType}`)
+    console.log(`🎭 Current scene:`, this.scene.scene.key)
+    console.log(`🎭 Current uiCamera:`, !!this.uiCamera)
     
-    if (unitType === 'hero') {
-      const heroStats: HeroStats = { strength: 15, intelligence: 12, agility: 18 }
-      unit = new Hero(this.scene, isoX, isoY, 'hero', 'Editor Hero', heroStats)
-    } else {
-      const unitStats: CombatStats = this.getDefaultUnitStats(unitType)
-      unit = new BasicUnit(this.scene, isoX, isoY, unitType, `Editor ${unitType}`, unitType, unitStats)
+    // Check if trying to place a hero when one already exists
+    if (unitType === 'configurableHero') {
+      const existingHeroes = this.units.filter(u => u instanceof ConfigurableHero)
+      if (existingHeroes.length > 0) {
+        console.warn('⚠️ Cannot place multiple heroes - only one hero allowed per map')
+        // Could show an alert to the user here
+        return
+      }
     }
+    
+    // Get modal instance with updated scene references
+    console.log(`🎭 Getting modal instance with updated scene references...`)
+    this.unitConfigModal = UnitConfigModal.getInstance(this.scene, this.uiCamera)
+    console.log(`🎭 Modal instance obtained:`, !!this.unitConfigModal)
+    
+    console.log(`🎭 About to call modal.show()...`)
+    this.unitConfigModal.show(
+      (config: UnitConfig) => {
+        console.log(`🎯 Confirm callback triggered for position (${isoX}, ${isoY}) with config:`, config)
+        if (unitType === 'configurableHero') {
+          this.placeConfigurableHero(isoX, isoY, config)
+        } else {
+          this.placeConfigurableUnit(isoX, isoY, config)
+        }
+      },
+      () => {
+        console.log(`🎯 Cancel callback triggered for position (${isoX}, ${isoY})`)
+        this.cancelUnitPlacement()
+      }
+    )
+    console.log(`🎭 modal.show() called successfully`)
+  }
+
+  private placeConfigurableUnit(isoX: number, isoY: number, config: UnitConfig): void {
+    console.log(`🎨 placeConfigurableUnit called for (${isoX}, ${isoY}) with config:`, config)
+    
+    const unit = new ConfigurableUnit(
+      this.scene,
+      isoX,
+      isoY,
+      'Custom Unit',
+      config
+    )
+    
+    // Disable world bounds collision for editor - units should be placeable anywhere
+    unit.sprite.setCollideWorldBounds(false)
+    
+    // Set appropriate depth for units (higher than terrain, blocks)
+    unit.sprite.setDepth(100 + isoX + isoY)
     
     this.units.push(unit)
     this.placedItems.set(`${isoX},${isoY}`, unit)
@@ -82,22 +136,83 @@ export class PlacementManager {
     if (unit.healthBar) {
       this.uiCamera.ignore(unit.healthBar.getContainer())
     }
+    
+    console.log(`✅ Successfully placed configurable unit at (${isoX}, ${isoY}) with stats:`, {
+      health: config.health,
+      attack: config.attack,
+      defense: config.defense,
+      goldOnDeath: config.goldOnDeath,
+      expOnDeath: config.expOnDeath,
+      texture: config.texture
+    })
+    
+    console.log(`🔍 Full config object:`, config)
   }
 
-  private getDefaultUnitStats(unitType: BasicUnitType): CombatStats {
-    switch (unitType) {
-      case BasicUnitType.WARRIOR:
-        return { health: 60, attack: 15, defense: 3, attackSpeed: 1, movementSpeed: 100 }
-      case BasicUnitType.ARCHER:
-        return { health: 40, attack: 20, defense: 1, attackSpeed: 1.5, movementSpeed: 120 }
-      case BasicUnitType.MAGE:
-        return { health: 30, attack: 25, defense: 1, attackSpeed: 1.2, movementSpeed: 90 }
-      case BasicUnitType.SCOUT:
-        return { health: 35, attack: 12, defense: 2, attackSpeed: 2, movementSpeed: 150 }
-      default:
-        return { health: 50, attack: 15, defense: 2, attackSpeed: 1, movementSpeed: 100 }
+  private placeConfigurableHero(isoX: number, isoY: number, config: UnitConfig): void {
+    console.log(`🦸 placeConfigurableHero called for (${isoX}, ${isoY}) with config:`, config)
+    
+    // Default hero stats for configurable heroes
+    const defaultStats: HeroStats = {
+      strength: 10,
+      intelligence: 10,
+      agility: 10
     }
+    
+    const hero = new ConfigurableHero(
+      this.scene,
+      isoX,
+      isoY,
+      'Custom Hero',
+      config,
+      defaultStats
+    )
+    
+    // Disable world bounds collision for editor - units should be placeable anywhere
+    hero.sprite.setCollideWorldBounds(false)
+    
+    // Set appropriate depth for units (higher than terrain, blocks)
+    hero.sprite.setDepth(100 + isoX + isoY)
+    
+    this.units.push(hero)
+    this.placedItems.set(`${isoX},${isoY}`, hero)
+    
+    // Make UI camera ignore world objects
+    this.uiCamera.ignore(hero.sprite)
+    
+    // Make UI camera ignore health bar if it exists
+    if (hero.healthBar) {
+      this.uiCamera.ignore(hero.healthBar.getContainer())
+    }
+    
+    // Make UI camera ignore level display elements
+    if ((hero as any).levelText) {
+      this.uiCamera.ignore((hero as any).levelText)
+    }
+    if ((hero as any).expCircle) {
+      this.uiCamera.ignore((hero as any).expCircle)
+    }
+    if ((hero as any).expBackground) {
+      this.uiCamera.ignore((hero as any).expBackground)
+    }
+    
+    console.log(`✅ Successfully placed configurable hero at (${isoX}, ${isoY}) with stats:`, {
+      health: config.health,
+      attack: config.attack,
+      defense: config.defense,
+      goldOnDeath: config.goldOnDeath,
+      expOnDeath: config.expOnDeath,
+      texture: config.texture,
+      heroStats: defaultStats
+    })
+    
+    console.log(`🔍 Full hero config object:`, config)
   }
+
+  private cancelUnitPlacement(): void {
+    console.log(`❌ Unit placement cancelled - modal closed without placing unit`)
+  }
+
 
   private placeTerrain(isoX: number, isoY: number, terrainType: TerrainType): void {
     const key = `${isoX},${isoY}`
@@ -131,18 +246,42 @@ export class PlacementManager {
     return { x, y }
   }
 
+  public editItem(isoX: number, isoY: number): void {
+    const key = `${isoX},${isoY}`
+    
+    // Check if there's a configurable unit or hero at this location
+    const item = this.placedItems.get(key)
+    if (item && (item instanceof ConfigurableUnit || item instanceof ConfigurableHero)) {
+      console.log(`✏️ Editing ${item instanceof ConfigurableHero ? 'hero' : 'unit'} at (${isoX}, ${isoY})`)
+      
+      // Get the current configuration
+      const currentConfig = item.getConfig()
+      
+      // Show the unit config modal with current values pre-filled
+      this.unitConfigModal = UnitConfigModal.getInstance(this.scene, this.uiCamera)
+      this.unitConfigModal.show(
+        (newConfig: UnitConfig) => {
+          console.log(`✏️ Updating ${item instanceof ConfigurableHero ? 'hero' : 'unit'} config:`, newConfig)
+          
+          // Update the unit with new configuration
+          item.updateConfig(newConfig)
+          
+          console.log(`✅ Successfully updated ${item instanceof ConfigurableHero ? 'hero' : 'unit'} at (${isoX}, ${isoY})`)
+        },
+        () => {
+          console.log(`❌ Edit cancelled for ${item instanceof ConfigurableHero ? 'hero' : 'unit'} at (${isoX}, ${isoY})`)
+        },
+        currentConfig // Pass current config as pre-fill data
+      )
+    } else {
+      console.log(`⚠️ No configurable unit or hero found at (${isoX}, ${isoY}) to edit`)
+    }
+  }
+
   public eraseItem(isoX: number, isoY: number): void {
     const key = `${isoX},${isoY}`
     
-    // Always try to erase terrain first
-    const terrain = this.terrain.get(key)
-    if (terrain) {
-      terrain.destroy()
-      this.terrain.delete(key)
-      console.log(`🗑️ Erased terrain at (${isoX}, ${isoY})`)
-    }
-    
-    // Then try to erase structures/units
+    // First try to erase structures/units (higher priority)
     const item = this.placedItems.get(key)
     if (item) {
       item.destroy()
@@ -152,12 +291,21 @@ export class PlacementManager {
       if (item instanceof Structure) {
         const index = this.structures.indexOf(item)
         if (index > -1) this.structures.splice(index, 1)
+        console.log(`🗑️ Erased structure at (${isoX}, ${isoY})`)
       } else {
-        const index = this.units.indexOf(item as Hero | BasicUnit)
+        const index = this.units.indexOf(item as ConfigurableUnit | ConfigurableHero)
         if (index > -1) this.units.splice(index, 1)
+        console.log(`🗑️ Erased unit at (${isoX}, ${isoY})`)
       }
-      
-      console.log(`🗑️ Erased item at (${isoX}, ${isoY})`)
+      return // Don't erase terrain if we erased an item
+    }
+    
+    // If no structures/units, then try to erase terrain
+    const terrain = this.terrain.get(key)
+    if (terrain) {
+      terrain.destroy()
+      this.terrain.delete(key)
+      console.log(`🗑️ Erased terrain at (${isoX}, ${isoY})`)
     }
   }
 
@@ -182,11 +330,11 @@ export class PlacementManager {
     return this.structures
   }
 
-  public getUnits(): Array<Hero | BasicUnit> {
+  public getUnits(): Array<ConfigurableUnit | ConfigurableHero> {
     return this.units
   }
 
-  public getPlacedItems(): Map<string, Structure | Hero | BasicUnit> {
+  public getPlacedItems(): Map<string, Structure | ConfigurableUnit | ConfigurableHero> {
     return this.placedItems
   }
 
@@ -203,5 +351,8 @@ export class PlacementManager {
 
   public destroy(): void {
     this.clearAll()
+    // Don't destroy the singleton modal here - it will be managed by the singleton itself
+    // this.unitConfigModal.destroy()
+    console.log('🎨 PlacementManager destroyed (modal singleton preserved)')
   }
 }

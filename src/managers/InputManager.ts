@@ -4,6 +4,9 @@ export interface InputManagerConfig {
   scene: Phaser.Scene
   onHeroMove: (x: number, y: number) => void
   onShoot: (targetX: number, targetY: number) => void
+  onHeroAttack: () => void
+  onMeleeAttack: (targetX: number, targetY: number) => void
+  onHomingAttack: (targetX: number, targetY: number) => void
   onCameraDrag: (deltaX: number, deltaY: number) => void
   onCameraZoom: (delta: number) => void
   onEditorToggle: () => void
@@ -11,12 +14,15 @@ export interface InputManagerConfig {
   onZoomIn: () => void
   onZoomOut: () => void
   onZoomReset: () => void
+  onTestExp?: () => void
+  onKillUnit?: () => void
+  getHeroAttackSpeed?: () => number
 }
 
 export class InputManager {
   private scene: Phaser.Scene
   private config: InputManagerConfig
-  private keys!: Phaser.Types.Input.Keyboard.CursorKeys & { q: Phaser.Input.Keyboard.Key }
+  private keys!: Phaser.Types.Input.Keyboard.CursorKeys & { q: Phaser.Input.Keyboard.Key, r: Phaser.Input.Keyboard.Key, z: Phaser.Input.Keyboard.Key }
   private wasd!: any
   
   // Camera drag state
@@ -28,8 +34,13 @@ export class InputManager {
   
   // Shooting state
   private lastShotTime: number = 0
-  private shotCooldown: number = 300
   private aimDirection: { x: number, y: number } | null = null
+  
+  // Melee attack state
+  private lastMeleeTime: number = 0
+  
+  // Homing attack state
+  private lastHomingTime: number = 0
 
   constructor(config: InputManagerConfig) {
     this.scene = config.scene
@@ -91,8 +102,10 @@ export class InputManager {
       down: 'DOWN', 
       left: 'LEFT',
       right: 'RIGHT',
-      q: 'Q'
-    }) as Phaser.Types.Input.Keyboard.CursorKeys & { q: Phaser.Input.Keyboard.Key }
+      q: 'Q',
+      r: 'R',
+      z: 'Z'
+    }) as Phaser.Types.Input.Keyboard.CursorKeys & { q: Phaser.Input.Keyboard.Key, r: Phaser.Input.Keyboard.Key, z: Phaser.Input.Keyboard.Key }
 
     // Add WASD for camera movement
     this.wasd = this.scene.input.keyboard!.addKeys('W,S,A,D')
@@ -111,33 +124,108 @@ export class InputManager {
     this.scene.input.keyboard!.on('keydown-HOME', () => {
       this.config.onCameraCenter()
     })
+
+    // Debug keys for testing experience system
+    this.scene.input.keyboard!.on('keydown-T', () => {
+      if (this.config.onTestExp) {
+        this.config.onTestExp()
+      }
+    })
+
+    this.scene.input.keyboard!.on('keydown-K', () => {
+      if (this.config.onKillUnit) {
+        this.config.onKillUnit()
+      }
+    })
   }
 
   public handleInput(): void {
     this.handleShooting()
+    this.handleMeleeAttack()
+    this.handleHomingAttack()
     this.handleCameraMovement()
   }
 
   private handleShooting(): void {
     if (this.keys.q.isDown) {
-      // Capture aim direction when Q is first pressed
-      if (!this.aimDirection) {
-        const pointer = this.scene.input.activePointer
-        const worldX = pointer.worldX
-        const worldY = pointer.worldY
-        this.aimDirection = { x: worldX, y: worldY }
-      }
-      
       const currentTime = this.scene.time.now
-      if (currentTime - this.lastShotTime >= this.shotCooldown) {
+      
+      // Get attack speed from hero (default to 1 if not available)
+      const attackSpeed = this.config.getHeroAttackSpeed?.() || 1
+      const attackCooldown = 1000 / attackSpeed // Convert attacks per second to milliseconds between attacks
+      
+      if (currentTime - this.lastShotTime >= attackCooldown) {
+        // Trigger attack animation
+        this.config.onHeroAttack()
+        this.lastShotTime = currentTime
+        
+        // Also shoot if we have aim direction (for projectile-based attacks)
+        if (!this.aimDirection) {
+          const pointer = this.scene.input.activePointer
+          const worldX = pointer.worldX
+          const worldY = pointer.worldY
+          this.aimDirection = { x: worldX, y: worldY }
+        }
+        
         if (this.aimDirection) {
           this.config.onShoot(this.aimDirection.x, this.aimDirection.y)
         }
-        this.lastShotTime = currentTime
       }
     } else {
       // Reset aim direction when Q is released
       this.aimDirection = null
+    }
+  }
+
+  private handleMeleeAttack(): void {
+    if (this.keys.r.isDown) {
+      const currentTime = this.scene.time.now
+      
+      // Get attack speed from hero (default to 1 if not available)
+      const attackSpeed = this.config.getHeroAttackSpeed?.() || 1
+      const attackCooldown = 1000 / attackSpeed // Convert attacks per second to milliseconds between attacks
+      
+      if (currentTime - this.lastMeleeTime >= attackCooldown) {
+        // Trigger melee attack animation
+        this.config.onHeroAttack()
+        this.lastMeleeTime = currentTime
+        
+        // Get melee target position (mouse cursor)
+        const pointer = this.scene.input.activePointer
+        const worldX = pointer.worldX
+        const worldY = pointer.worldY
+        
+        // Delay the actual melee attack by 0.75 seconds
+        this.scene.time.delayedCall(350, () => {
+          this.config.onMeleeAttack(worldX, worldY)
+        })
+      }
+    }
+  }
+
+  private handleHomingAttack(): void {
+    if (this.keys.z.isDown) {
+      const currentTime = this.scene.time.now
+      
+      // Get attack speed from hero (default to 1 if not available)
+      const attackSpeed = this.config.getHeroAttackSpeed?.() || 1
+      const attackCooldown = 1000 / attackSpeed // Convert attacks per second to milliseconds between attacks
+      
+      if (currentTime - this.lastHomingTime >= attackCooldown) {
+        // Trigger homing attack animation
+        this.config.onHeroAttack()
+        this.lastHomingTime = currentTime
+        
+        // Get homing target position (mouse cursor)
+        const pointer = this.scene.input.activePointer
+        const worldX = pointer.worldX
+        const worldY = pointer.worldY
+        
+        // Delay the actual homing attack by 0.35 seconds (same as melee)
+        this.scene.time.delayedCall(350, () => {
+          this.config.onHomingAttack(worldX, worldY)
+        })
+      }
     }
   }
 

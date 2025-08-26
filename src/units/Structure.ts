@@ -29,10 +29,17 @@ export class Structure extends Unit {
     this.visionRange = 0
     
     this.sprite.setImmovable(true)
-    this.sprite.body?.setSize(32, 40)
     
-    if (!this.isPassable && this.sprite.body) {
+    // Set up physics body for collision detection
+    if (this.sprite.body) {
+      this.sprite.body.setSize(32, 32) // Make collision box match tile size
       this.sprite.body.enable = true
+      
+      // For impassable structures, ensure they can collide
+      if (!this.isPassable) {
+        this.sprite.body.pushable = false
+        this.sprite.body.immovable = true
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import { Structure, BasicUnit, Hero } from '../../units'
+import { Structure, ConfigurableUnit, ConfigurableHero } from '../../units'
 import { MapData, TerrainType } from '../../scenes/MapEditorScene'
 
 export class MapDataManager {
@@ -9,7 +9,7 @@ export class MapDataManager {
     mapHeight: number,
     terrain: Map<string, Phaser.GameObjects.Image>,
     structures: Array<Structure>,
-    units: Array<Hero | BasicUnit>
+    units: Array<ConfigurableUnit | ConfigurableHero>
   ): MapData {
     const terrainData: Array<{x: number, y: number, type: TerrainType}> = []
     terrain.forEach((sprite, key) => {
@@ -38,26 +38,23 @@ export class MapDataManager {
         y: s.isometricY,
         type: s.structureType
       })),
-      units: units.map(u => {
-        if (u instanceof Hero) {
+      units: units.filter(u => u instanceof ConfigurableUnit || u instanceof ConfigurableHero).map(u => {
+        if (u instanceof ConfigurableHero) {
           return {
             x: u.isometricX,
             y: u.isometricY,
-            type: 'hero' as const,
-            stats: { strength: u.stats.strength, intelligence: u.stats.intelligence, agility: u.stats.agility }
+            type: 'configurableHero' as string,
+            stats: {
+              config: u.config,
+              heroStats: { strength: u.stats.strength, intelligence: u.stats.intelligence, agility: u.stats.agility }
+            }
           }
         } else {
           return {
             x: u.isometricX,
             y: u.isometricY,
-            type: u.basicUnitType,
-            stats: {
-              health: u.maxHealth,
-              attack: u.attack,
-              defense: u.defense,
-              attackSpeed: u.attackSpeed,
-              movementSpeed: u.movementSpeed
-            }
+            type: 'configurable' as string,
+            stats: u.config
           }
         }
       })
